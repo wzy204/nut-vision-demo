@@ -1,0 +1,14 @@
+import {readFile,stat} from 'node:fs/promises';
+import {Script} from 'node:vm';
+import assert from 'node:assert/strict';
+const file='dist/NUT-VISION-离线演示.html';
+const html=await readFile(file,'utf8');
+assert.ok(html.includes('NUTVISION')||html.includes('NUT<span'));
+assert.equal((html.match(/<script>/g)||[]).length,1,'single inline script');
+assert.ok(!/<script[^>]+src=/i.test(html),'no external script');
+assert.ok(!/<link[^>]+stylesheet/i.test(html),'no external stylesheet');
+assert.ok(!/@import\s/i.test(html),'no CSS network import');
+const code=html.match(/<script>([\s\S]*)<\/script>/)?.[1];
+assert.ok(code);new Script(code,{filename:'offline-bundle.js'});
+const size=(await stat(file)).size;
+console.log(`DELIVERY PASS: self-contained HTML, embedded script parses, ${(size/1024).toFixed(1)} KiB`);
