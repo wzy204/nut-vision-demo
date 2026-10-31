@@ -76,13 +76,13 @@ export function createWorld(host,onSelect,monitorCanvas){
   controls.update(delta);
   const expanded=view==='exploded';cad.lifts.camera.position.y=THREE.MathUtils.damp(cad.lifts.camera.position.y,expanded?2:0,6,delta);lights.position.y=THREE.MathUtils.damp(lights.position.y,expanded?1:0,6,delta);board.position.y=THREE.MathUtils.damp(board.position.y,0,6,delta);collector.position.x=THREE.MathUtils.damp(collector.position.x,expanded?1:0,6,delta);
   cableHarness.update({camera:cad.lifts.camera.position.y,light:lights.position.y,board:board.position.y},sim.time);
-  feeder.position.y=Math.sin(sim.time*40)*.014;
+  cad.moving.feederTray.position.y=Math.sin(sim.time*40)*.014;
   const queued=sim.nuts.filter(n=>n.stage==='bowl'),shown=new Set(queued.slice(0,12).map(n=>n.index));
   for(const n of sim.nuts){const m=nutPool[n.index];m.visible=n.stage!=='out'&&(n.stage!=='bowl'||shown.has(n.index));
    if(n.stage==='bowl'){
     const progress=THREE.MathUtils.clamp((n.x+6)/.7,0,1),waiting=queued.indexOf(n),x=progress>0?THREE.MathUtils.lerp(-8.8,-5.3,progress):-9.9+Math.floor(waiting/4)*.5,z=progress>0?n.y:(waiting%4-1.5)*.52;
-    m.position.set(x,trayHeight(x)+.025+feeder.position.y,z);m.rotation.y=n.rotation;
-   }else{const height=n.x< -5.3?trayHeight(n.x):n.x< -4.8?THREE.MathUtils.lerp(trayHeight(-5.3),beltHeight(n.x),(n.x+5.3)/.5):n.x>6.5?THREE.MathUtils.lerp(beltHeight(n.x),.35,THREE.MathUtils.clamp((n.x-6.5)/.7,0,1)):beltHeight(n.x);m.position.set(n.x,height+.025,n.y);m.rotation.y=n.rotation;}}
+    m.position.set(x,trayHeight(x)+.025+cad.moving.feederTray.position.y,z);m.rotation.y=n.rotation;
+   }else{const height=n.x< -5.3?trayHeight(n.x):n.x< -4.8?THREE.MathUtils.lerp(trayHeight(-5.3),beltHeight(n.x),(n.x+5.3)/.5):n.x>6.5?THREE.MathUtils.lerp(beltHeight(n.x),.35,THREE.MathUtils.clamp((n.x-6.5)/.7,0,1)):beltHeight(n.x);const trayWeight=THREE.MathUtils.clamp((-4.8-n.x)/.5,0,1);m.position.set(n.x,height+.025+cad.moving.feederTray.position.y*trayWeight,n.y);m.rotation.y=n.rotation;}}
   for(let i=sim.nuts.length;i<nutPool.length;i++)nutPool[i].visible=false;
   cad.rotors.forEach(r=>r.rotation.z=sim.time*sim.config.speed/1.15);
   for(const p of paths)if(p.parent.visible)p.dots.forEach((d,i)=>d.position.copy(p.curve.getPointAt((sim.time*.32+i/3)%1)));

@@ -15,6 +15,7 @@ export function buildCadAssembly(parent){
  const groups={},geometries=data.geometries.map(decodeCadGeometry),rotors=[],materials=new Map();
  const group=id=>groups[id]??=(()=>{const g=new THREE.Group();g.name=id;g.userData.part=id;parent.add(g);return g;})();
  const cameraLift=new THREE.Group();cameraLift.name='camera-upper-exploded';group('camera').add(cameraLift);
+ const feederTray=new THREE.Group();feederTray.name='feeder-vibrating-tray';group('feeder').add(feederTray);
  function material(instance){
   const name=instance.name,role=instance.role;
   let color=new THREE.Color().fromArray(instance.color??[.8,.8,.8]);
@@ -37,6 +38,7 @@ export function buildCadAssembly(parent){
    const pivot=new THREE.Group(),center=new THREE.Box3(new THREE.Vector3(...instance.bounds[0]),new THREE.Vector3(...instance.bounds[1])).getCenter(new THREE.Vector3());
    pivot.position.copy(center);o.matrix.premultiply(new THREE.Matrix4().makeTranslation(-center.x,-center.y,-center.z));pivot.add(o);group(instance.role).add(pivot);rotors.push(pivot);
   }else if(instance.role==='camera'&&/摄像头-1$|摄像头支架上部-1$/.test(instance.name))cameraLift.add(o);
+  else if(instance.role==='feeder'&&/\/零件1-1$/.test(instance.name))feederTray.add(o);
   else group(instance.role).add(o);
   // Thin edges retain CAD holes and slots without a heavy wireframe overlay.
   if(instance.role!=='board'){
@@ -46,5 +48,5 @@ export function buildCadAssembly(parent){
  const bounds=Object.fromEntries(Object.entries(data.groups).map(([id,b])=>[id,new THREE.Box3(new THREE.Vector3(...b[0]),new THREE.Vector3(...b[1]))]));
  // The feed chute is integrated into the supplied tray; pick only its outlet.
  const chute=group('chute');const hit=new THREE.Mesh(new THREE.BoxGeometry(1,.16,2.6),new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false}));hit.position.set(-5.8,3.55,0);chute.add(hit);
- return {groups,bounds,rotors,geometries,lifts:{camera:cameraLift}};
+ return {groups,bounds,rotors,geometries,lifts:{camera:cameraLift},moving:{feederTray}};
 }

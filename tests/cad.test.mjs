@@ -5,6 +5,25 @@ import data from '../src/assets/cad-assembly.json' with {type:'json'};
 import {decodeCadGeometry} from '../src/cad-geometry.js';
 import {buildCadAssembly,beltHeight,trayHeight} from '../src/cad-model.js';
 
+test('送料动画仅移动上方物料盘，底座、电机、支架和连接杆保持固定',()=>{
+ const root=new THREE.Group(),cad=buildCadAssembly(root),meshes=[];
+ root.traverse(o=>{if(o.isMesh&&o.userData.part==='feeder')meshes.push(o);});
+ root.updateMatrixWorld(true);
+ const initial=new Map(meshes.map(o=>[o,o.matrixWorld.clone()]));
+ assert.equal(cad.moving.feederTray.children.length,1);
+ assert.match(cad.moving.feederTray.children[0].name,/\/零件1-1$/);
+ assert.ok(meshes.length>3);
+ for(const y of [-.014,0,.014]){
+  cad.moving.feederTray.position.y=y;root.updateMatrixWorld(true);
+  for(const o of meshes){
+   const before=initial.get(o),after=o.matrixWorld;
+   if(o.parent===cad.moving.feederTray){assert.ok(Math.abs(after.elements[13]-before.elements[13]-y)<1e-12);}
+   else assert.deepEqual(after.elements,before.elements,o.name+' must remain fixed');
+  }
+  assert.equal(cad.groups.feeder.position.y,0);
+ }
+});
+
 test('CAD 转换完整：83 实例、52 网格，源装配无缺件且坐标变换通过原边界检查',()=>{
  assert.equal(data.instances.length,83);assert.equal(data.geometries.length,52);
  assert.equal(data.exportErrors,0);assert.equal(data.exportWarnings,0);assert.equal(data.omissions.length,0);
