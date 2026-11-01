@@ -5,6 +5,7 @@ import { parts } from './content.js';
 import { createNutGeometry } from './nut-geometry.js';
 import { MAX_QUANTITY } from './nut.js';
 import { createCableHarness } from './cable-routes.js';
+import { FOV_HEIGHT } from './vision.js';
 import { buildCadAssembly, beltHeight, trayHeight, cadMetadata } from './cad-model.js';
 
 const C={steel:0x839bad,dark:0x17212b,cyan:0x5ee8cf,blue:0x5baeff,purple:0xb091fa,gold:0xd8aa65};
@@ -41,12 +42,12 @@ export function createWorld(host,onSelect,monitorCanvas){
  label('camera','05  相机 / 独立升降支架',[0,11.9,-1.6]);label('light','06  双侧条灯 / 伸缩支架',[2.4,8.65,0]);
  label('board','07  PYNQ-Z2 / 原装配位置',[0,1.25,-4.1]);
  const surfaceY=beltHeight(0)+.025;
- const footprint=[[-1.8,surfaceY,-1.35],[1.8,surfaceY,-1.35],[1.8,surfaceY,1.35],[-1.8,surfaceY,1.35]];
+ const footprint=[[-1.8,surfaceY,-FOV_HEIGHT/2],[1.8,surfaceY,-FOV_HEIGHT/2],[1.8,surfaceY,FOV_HEIGHT/2],[-1.8,surfaceY,FOV_HEIGHT/2]];
  const tip=[0,11.015,-1.627],coneVertices=[];
  for(let i=0;i<4;i++)coneVertices.push(...tip,...footprint[i],...footprint[(i+1)%4]);
  const cone=new THREE.Mesh(new THREE.BufferGeometry().setAttribute('position',new THREE.Float32BufferAttribute(coneVertices,3)),new THREE.MeshBasicMaterial({color:C.cyan,transparent:true,opacity:.025,side:THREE.DoubleSide,depthWrite:false}));physical.add(cone);
  physical.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(footprint.map(p=>new THREE.Vector3(...p))),new THREE.LineBasicMaterial({color:C.cyan})));
- glowBox(physical,[.025,.012,2.7],[0,surfaceY,0],C.gold);text(physical,'COUNT LINE',[0,surfaceY+.25,1.7],.12,'#e8bd7e',1.8);
+ glowBox(physical,[.025,.012,FOV_HEIGHT],[0,surfaceY,0],C.gold);text(physical,'COUNT LINE',[0,surfaceY+.25,1.7],.12,'#e8bd7e',1.8);
  // These display/power/data overlays are instructional additions, not CAD parts.
  const power=group('power');power.position.set(-3,.5,-5.7);box(power,[1.5,.65,1.1],[0,0,0],0x2d4356);for(let i=0;i<7;i++)box(power,[.9,.015,.035],[0,.34,-.4+i*.13],0x101c29);glowBox(power,[.07,.06,.07],[.5,.1,.56]);label('power','供电 / 控制 · 示意',[-3,1.4,-5.7]);
  const mon=group('monitor');mon.position.set(9.6,0,-4.8);box(mon,[.25,1.3,.25],[0,.8,0]);box(mon,[2,.12,1],[0,.08,.2]);box(mon,[3.6,2.65,.18],[0,2.7,0],0x121d29);const screenTexture=new THREE.CanvasTexture(monitorCanvas);screenTexture.colorSpace=THREE.SRGBColorSpace;const screen=new THREE.Mesh(new THREE.PlaneGeometry(3.3,2.38),new THREE.MeshBasicMaterial({map:screenTexture}));screen.position.set(0,2.7,.102);mon.add(screen);mon.rotation.y=-.35;label('monitor','HDMI 显示 · 示意',[9.6,4.3,-4.8]);
@@ -84,12 +85,12 @@ export function createWorld(host,onSelect,monitorCanvas){
     m.position.set(x,trayHeight(x)+.025+cad.moving.feederTray.position.y,z);m.rotation.y=n.rotation;
    }else{const height=n.x< -5.3?trayHeight(n.x):n.x< -4.8?THREE.MathUtils.lerp(trayHeight(-5.3),beltHeight(n.x),(n.x+5.3)/.5):n.x>6.5?THREE.MathUtils.lerp(beltHeight(n.x),.35,THREE.MathUtils.clamp((n.x-6.5)/.7,0,1)):beltHeight(n.x);const trayWeight=THREE.MathUtils.clamp((-4.8-n.x)/.5,0,1);m.position.set(n.x,height+.025+cad.moving.feederTray.position.y*trayWeight,n.y);m.rotation.y=n.rotation;}}
   for(let i=sim.nuts.length;i<nutPool.length;i++)nutPool[i].visible=false;
-  cad.rotors.forEach(r=>r.rotation.z=sim.time*sim.config.speed/1.15);
+  cad.rotors.forEach(r=>r.rotation.z=sim.distance/1.15);
   for(const p of paths)if(p.parent.visible)p.dots.forEach((d,i)=>d.position.copy(p.curve.getPointAt((sim.time*.32+i/3)%1)));
-  screenTexture.needsUpdate=true;if(highlight)highlight.update();
+  if(highlight)highlight.update();
   for(const l of labels){const active=l.parent===chip?view==='fpga':view!=='fpga';if(!active){l.el.hidden=true;continue;}const v=l.p.clone();if(l.parent!==chip&&cad.groups[l.id])v.add(cad.groups[l.id].position);if(l.id==='camera')v.add(cad.lifts.camera.position);v.project(camera);l.el.hidden=v.z< -1||v.z>1||v.x< -1||v.x>1||v.y< -1||v.y>1;l.el.style.left=`${(v.x+1)*.5*host.clientWidth}px`;l.el.style.top=`${(1-v.y)*.5*host.clientHeight}px`;}
   renderer.render(scene,camera);
  }
  controls.addEventListener('start',()=>focus=null);
- return{update,setView,select,renderer,scene,camera,cadMetadata};
+ return{update,setView,select,renderer,scene,camera,cadMetadata,invalidateScreen:()=>{screenTexture.needsUpdate=true;}};
 }

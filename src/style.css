@@ -14,3 +14,5 @@
 #selection #closeDetail{z-index:2;background:#101c2a;border:1px solid #385265;border-radius:4px}
 @media(max-width:850px){#selection{--detail-top:135px}}
 
+
+.image-grid canvas{aspect-ratio:8/5}
