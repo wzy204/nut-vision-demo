@@ -52,17 +52,21 @@ export function createWorld(host,onSelect,monitorCanvas){
  const power=group('power');power.position.set(-3,.5,-5.7);box(power,[1.5,.65,1.1],[0,0,0],0x2d4356);for(let i=0;i<7;i++)box(power,[.9,.015,.035],[0,.34,-.4+i*.13],0x101c29);glowBox(power,[.07,.06,.07],[.5,.1,.56]);label('power','供电 / 控制 · 示意',[-3,1.4,-5.7]);
  const mon=group('monitor');mon.position.set(9.6,0,-4.8);box(mon,[.25,1.3,.25],[0,.8,0]);box(mon,[2,.12,1],[0,.08,.2]);box(mon,[3.6,2.65,.18],[0,2.7,0],0x121d29);const screenTexture=new THREE.CanvasTexture(monitorCanvas);screenTexture.colorSpace=THREE.SRGBColorSpace;const screen=new THREE.Mesh(new THREE.PlaneGeometry(3.3,2.38),new THREE.MeshBasicMaterial({map:screenTexture}));screen.position.set(0,2.7,.102);mon.add(screen);mon.rotation.y=-.35;label('monitor','HDMI 显示 · 示意',[9.6,4.3,-4.8]);
  const cableHarness=createCableHarness(physical);
- text(physical,'USB / GRAY8',[1.15,7,-6.85],.14,'#80baff',2.5);text(physical,'HDMI · 示意',[6,.65,-7.05],.12,'#bba4f6',2.3);
+ text(physical,'BASELINE USB / MJPEG',[1.15,7,-6.85],.14,'#80baff',2.5);text(physical,'HDMI · 示意',[6,.65,-7.05],.12,'#bba4f6',2.3);
  const nutGeo=createNutGeometry();
  const nutPool=[];for(let i=0;i<MAX_QUANTITY;i++){const n=new THREE.Mesh(nutGeo,mat(0xc8d2db,.9,.26));n.userData.part='nut';physical.add(n);nutPool.push(n);selectable.push(n);}
  // Expanded chip: logical topology, not physical silicon floorplan.
  box(chip,[14,.14,7],[0,.1,0],0x122638,.25);for(const z of [-3.5,3.5])glowBox(chip,[14,.035,.025],[0,.19,z],C.cyan,.5);
- const nodes=[['ps','ARM PS',[-5,0,-1.6],[2.4,.7,1.6],C.blue],['ddr','DDR BUFFER',[-5,0,1.5],[2.4,.5,1.4],C.blue],['dma','AXI DMA',[-1.7,0,1.5],[2.5,.7,1.4],C.cyan],['gray','GRAY8',[-1.7,0,-1.6],[1.8,.6,1.3],C.purple],['threshold','THRESHOLD',[.8,0,-1.6],[2,.6,1.3],C.purple],['morph','3×3 MORPH',[3.5,0,-1.6],[2.4,.6,1.3],C.purple],['roi','ROI / STATS',[4,0,1.5],[2.5,.6,1.4],C.purple],['tracking','TRACK / COUNT',[-1.7,0,3],[2.6,.45,.65],C.blue]];
+ const nodes=[['capture','ACQUIRE / DECODE',[-5,0,-2.5],[2.4,.6,1],C.gold],['gray','GRAY8',[-2,0,-2.5],[2,.6,1],C.purple],['roi','ROI',[.8,0,-2.5],[2,.6,1],C.purple],['threshold','THRESHOLD',[3.6,0,-2.5],[2.4,.6,1],C.purple],['morph','3x3 MORPH',[3.6,0,0],[2.4,.6,1],C.purple],['rle','RLE',[.8,0,0],[2,.6,1],C.purple],['tracking','PS RLE / TRACK',[-2.4,0,0],[2.7,.6,1],C.blue],['ps','PS CONTROL',[-5.3,0,0],[2,.6,1],C.blue],['overlay','PL OVERLAY',[2.7,0,2.6],[3,.6,1],C.gold],['web','WEB AUX',[-2.4,0,2.6],[2.5,.6,1],C.blue]];
  for(const [id,title,pos,size,color]of nodes){const g=group(id,chip);g.position.set(pos[0],.5,pos[2]);box(g,size,[0,0,0],0x234052);glowBox(g,[size[0]-.1,.035,.055],[0,size[1]/2+.02,size[2]/2-.04],color);text(g,title,[0,.65,0],.15,`#${color.toString(16)}`,size[0]+.3);label(id,parts[id].name,[pos[0],1.8,pos[2]],chip);for(let j=0;j<7;j++)box(g,[.07,.07,.14],[-size[0]/2+.2+j*.25,0,-size[2]/2-.06],C.gold);}
  for(let r=0;r<3;r++)for(let c=0;c<16;c++)glowBox(groups.morph,[.1,.025,.09],[-.97+c*.125,.34,-.35+r*.18],r===1?C.cyan:C.purple,.65);
- const route=[[-5,.96,-1.6],[-5,.96,1.5],[-1.7,.96,1.5],[-1.7,.96,-1.6],[.8,.96,-1.6],[3.5,.96,-1.6],[4,.96,1.5],[-1.7,.96,1.5],[-5,.96,1.5],[-5,.96,-1.6]];
- for(let i=0;i<route.length-1;i++)wire(chip,[route[i],route[i+1]],i<3?C.blue:C.cyan,.035);
- wire(chip,[[-5,.9,-1.5],[-5,1.1,3],[-1.7,.9,3]],C.blue,.025);text(chip,'AXI-Lite 配置 / 状态（示意）',[0,.35,-3],.15,'#708da6',5.5);text(chip,'逻辑展开示意 · 非芯片物理布局',[0,.3,4.2],.17,'#8aa1b8',6);
+ const route=[[-5,.96,-2.5],[-2,.96,-2.5],[.8,.96,-2.5],[3.6,.96,-2.5],[3.6,.96,0],[.8,.96,0],[-2.4,.96,0]];
+ for(let i=0;i<route.length-1;i++)wire(chip,[route[i],route[i+1]],C.cyan,.035);
+ wire(chip,[[-2,.96,-2.5],[-2,1.7,-1.2],[5.8,1.7,-1.2],[5.8,1.7,2.6],[2.7,.96,2.6]],C.purple,.035);
+ wire(chip,[[-2.4,.96,0],[-2.4,1.2,1.3],[2.7,1.2,1.3],[2.7,.96,2.6]],C.blue,.025);
+ wire(chip,[[-2.4,.96,0],[-2.4,.96,2.6]],C.blue,.025);
+ text(chip,'GRAY VIDEO + PS METADATA → PL OVERLAY → VDMA / HDMI',[0,.3,4.2],.13,'#d9b97c',10);
+ text(chip,'TARGET / INTEGRATION · NOT B2 ACCEPTANCE',[0,.3,-3.7],.13,'#d9b97c',9);
  const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();let down=null,focus=null,view='overview',highlight=null;
  renderer.domElement.addEventListener('pointerdown',e=>down=[e.clientX,e.clientY]);
  renderer.domElement.addEventListener('pointerup',e=>{if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>5)return;const r=renderer.domElement.getBoundingClientRect();pointer.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(pointer,camera);const hits=ray.intersectObjects(selectable,true).filter(h=>{let p=h.object;while(p){if(!p.visible)return false;p=p.parent;}return true;});if(hits.length){let o=hits[0].object;while(!o.userData.part&&o.parent)o=o.parent;const id=o.userData.part;if(id==='nut')onSelect('tracking');else onSelect(id);}});

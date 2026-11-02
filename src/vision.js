@@ -1,4 +1,5 @@
 // Browser teaching model. No board data, no claimed hardware performance.
+import { rleComponents } from './rle.js';
 import { createBatchLayout, NUT_OUTER_RADIUS, NUT_HOLE_RADIUS } from './nut.js';
 export const W = 640, H = 400;
 export const COUNT_X=W/2, WORLD_UNITS_PER_METRE=24;
@@ -43,7 +44,8 @@ export function components(mask, width = W, height = H, foreground = true, diago
   return regions;
 }
 export function detect(mask, split = true) {
-  const regions = components(mask).filter(r => r.area >= 120 && r.area < 20000);
+  const encoded=rleComponents(mask,W,H);
+  const regions = encoded.filter(r => r.area >= 120 && r.area < 20000);
   const holes = split ? components(mask, W, H, false, false, false).filter(r => r.area >= 36 && r.minX > 0 && r.minY > 0 && r.maxX < W-1 && r.maxY < H-1) : [];
   const detections = [];
   for (const r of regions) {
@@ -62,7 +64,7 @@ export function detect(mask, split = true) {
       });
     } else detections.push(r);
   }
-  return {detections, regionCount:regions.length};
+  return {detections, regionCount:regions.length,runCount:encoded.runCount};
 }
 export class Tracker {
   constructor() { this.reset(); }
@@ -103,7 +105,7 @@ export class Simulation {
     }
     this.raster();
     this.binary=morphology(threshold(this.gray,c.threshold),c.morph);
-    const result=detect(this.binary,c.split);this.regions=result.regionCount;
+    const result=detect(this.binary,c.split);this.regions=result.regionCount;this.runCount=result.runCount;
     this.current=this.tracker.update(result.detections,this.frame);
   }
   raster(){
