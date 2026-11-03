@@ -86,3 +86,5 @@ footer{font-size:10px;color:#9fb5c9;letter-spacing:.5px}
 .rle-panel input{flex:1;min-width:0}
 .rle-panel small{display:block;font-size:11px;line-height:1.8;color:#9eb6ca}
 @media(max-width:600px){.board-performance{padding:16px}.board-performance .baseline-metrics{grid-template-columns:1fr}.journey-tabs button{flex:1}}
+
+.repository-progress{margin-top:14px;border-top:1px solid #30455c;padding-top:12px}.repository-progress summary{cursor:pointer;color:#efc27f;font-size:12px;line-height:1.8}.repository-progress p{font-size:12px;line-height:1.8;color:#b5c9dc}.repository-progress a{color:#79dfcf;text-decoration:underline;text-underline-offset:3px}.repository-progress a:focus-visible{outline:2px solid #79dfcf;outline-offset:3px}

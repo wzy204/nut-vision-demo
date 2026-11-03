@@ -1,4 +1,5 @@
 import './style.css';
+import './presentation.css';
 import {stages,branchMarkup,performanceMarkup} from './journey.js';
 import {encodeRLE} from './rle.js';
 
@@ -40,16 +41,16 @@ const pipeline=$('pipeline');
 const branches=document.createElement('div');branches.id='journeyBranches';document.querySelector('.stage-explanation').after(branches);
 const performance=document.createElement('div');performance.innerHTML=performanceMarkup;document.querySelector('.metrics').after(performance.firstElementChild);
 function renderJourney(){pipeline.replaceChildren();branches.innerHTML=branchMarkup();
-stages.forEach((s,i)=>{const b=document.createElement('button');b.innerHTML=`${s[0]}<small>${s[1]}</small>`;b.onclick=()=>{setStage(i);selectPart(s[3]);};pipeline.appendChild(b);});}
+stages.forEach((s,i)=>{const b=document.createElement('button');b.innerHTML=`<span class="stage-number">${String(i+1).padStart(2,'0')}</span><span class="stage-label">${s[0]}<small>${s[1]}</small></span>`;b.onclick=()=>{setStage(i);selectPart(s[3]);};pipeline.appendChild(b);});}
 renderJourney();
 let selectedPart=null;
-function setStage(i){stage=i;pipeline.querySelectorAll('button').forEach((b,j)=>b.classList.toggle('active',i===j));$('stageIndex').textContent=`0${i+1} / 07`;$('stageText').textContent=stages[i][2];}
+function setStage(i){stage=i;pipeline.querySelectorAll('button').forEach((b,j)=>(b.classList.toggle('active',i===j),b.setAttribute('aria-pressed',String(i===j))));$('stageIndex').textContent=`0${i+1} / 07`;$('stageText').textContent=stages[i][2];}
 setStage(0);
 function selectPart(id){if(!parts[id])return;selectedPart=id;const p={...parts[id]};for(const [key,value]of Object.entries({partCategory:p.category,partName:p.name,partDescription:p.description,partInside:p.inside,partConnection:p.connection,partEvidence:p.evidence}))$(key).textContent=value;$('selection').hidden=false;detailBody.scrollTop=0;world?.select(id);moduleButton.hidden=!['camera','board','monitor'].includes(id);moduleButton.textContent=id==='board'?'进入 PS / PL 内部 →':'打开视觉检测视角 →';moduleButton.onclick=()=>{changeView(id==='board'?'fpga':'camera');};}
 $('closeDetail').onclick=()=>{$('selection').hidden=true;world?.select(null);};
 const views={overview:['01','物料视觉计数 · 系统总览','连续送料 → 图像采集 → 硬件加速 → 跟踪计数'],camera:['02','摄像头视角 · 目标检测与越线','顶视观察检测区；下方灰度图和二值图与目标运动同步'],fpga:['03','进入 Zynq · PS / PL 协同处理','PS 采集解码 → PL 前处理 / RLE → PS 区域与计数 → PS 看板 / VDMA 显示'],exploded:['04','分模块剖视 · 硬件连接','展开相机、灯架与接料盒，板卡保留原安装位置']};
 function changeView(v){view=v;const [code,title,desc]=views[v];$('sceneCode').textContent=code;$('sceneTitle').textContent=title;$('sceneDescription').textContent=desc;$('chipLegend').hidden=v!=='fpga';pixelInspector.hidden=v!=='fpga';document.querySelectorAll('.view').forEach(b=>b.classList.toggle('active',b.dataset.view===v));$('selection').hidden=true;world?.setView(v);dirty=true;}
-document.querySelectorAll('.view').forEach(b=>b.onclick=()=>changeView(b.dataset.view));$('home').onclick=()=>changeView('overview');
+document.querySelectorAll('.view').forEach(b=>b.onclick=()=>changeView(b.dataset.view));$('home').onclick=()=>changeView(view==='exploded'?'exploded':'overview');
 const runStatus=document.createElement('span');runStatus.id='runStatus';runStatus.setAttribute('role','status');document.querySelector('.run-controls').prepend(runStatus);
 function playState(){runStatus.textContent=playing?'● 正在运行':'Ⅱ 已暂停';runStatus.dataset.running=String(playing); $('play').textContent=playing?'Ⅱ 暂停':'▶ 继续';$('step').disabled=playing; }
 function batchSummary(){const groups=new Map(sim.layout.map(p=>[p.groupId,p.kind]));const count=kind=>[...groups.values()].filter(k=>k===kind).length;$('batchSummary').textContent=config.touching?`本批：独立 ${count('single')} 颗 · 双颗 ${count('pair')} 组 · 三角三颗 ${count('triangle')} 组；并行 / 前后 / 三角错位过线。`:`本批：${config.quantity} 颗独立螺母。`;}

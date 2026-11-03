@@ -11,6 +11,7 @@ import { buildCadAssembly, beltHeight, trayHeight, cadMetadata } from './cad-mod
 const C={steel:0x839bad,dark:0x17212b,cyan:0x5ee8cf,blue:0x5baeff,purple:0xb091fa,gold:0xd8aa65};
 // Shared by startup and reset: belt along the horizontal axis, viewed from +Z.
 const OVERVIEW_POSE=[[-1,12.9,24],[-1,4.5,0]];
+const LABEL_NUMBERS={"feeder":"01","chute":"02","belt":"03","motor":"04","camera":"05","light":"06","board":"07","monitor":"08","power":"09","collector":"10","capture":"11","gray":"12","roi":"13","threshold":"14","morph":"15","rle":"16","ps":"17","tracking":"18","overlay":"19","web":"20"};
 export function createWorld(host,onSelect,monitorCanvas){
  const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
  renderer.setPixelRatio(Math.min(devicePixelRatio,1.65));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
@@ -30,7 +31,8 @@ export function createWorld(host,onSelect,monitorCanvas){
  function glowBox(parent,size,pos,color=C.cyan,opacity=1){const m=box(parent,size,pos,color,0);m.material=new THREE.MeshBasicMaterial({color,transparent:opacity<1,opacity,depthWrite:opacity===1});return m;}
  const selectable=[],groups={},labels=[],paths=[];
  function group(id,parent=physical){const g=new THREE.Group();g.userData.part=id;parent.add(g);groups[id]=g;selectable.push(g);return g;}
- function label(id,text,p,parent=physical){const el=document.createElement('button');el.className='part-label';el.textContent=text;el.onclick=()=>onSelect(id);host.querySelector('#labels').appendChild(el);labels.push({id,el,p:new THREE.Vector3(...p),parent});}
+ const shortLabels={feeder:'振动送料槽',chute:'导流出口',belt:'传送带',motor:'减速电机',camera:'相机与支架',light:'双侧补光灯',board:'PYNQ-Z2',monitor:'HDMI 显示',power:'供电 / 控制',collector:'接料盒'};
+ function label(id,text,p,parent=physical){const el=document.createElement('button');el.className='part-label';if(!LABEL_NUMBERS[id])throw Error('Missing label number: '+id);el.title=text.replace(/^\d+\s+/, '');el.setAttribute('aria-label',LABEL_NUMBERS[id]+' '+el.title);el.textContent=LABEL_NUMBERS[id]+'  '+(shortLabels[id]||el.title);el.onclick=()=>onSelect(id);host.querySelector('#labels').appendChild(el);labels.push({id,el,p:new THREE.Vector3(...p),parent});}
  function text(parent,str,pos,size=.22,color='#bdd9eb',width=3.5){const c=document.createElement('canvas');c.width=768;c.height=128;const ctx=c.getContext('2d');ctx.font='500 53px Segoe UI, Microsoft YaHei';ctx.textAlign='center';ctx.fillStyle=color;ctx.fillText(str,384,80);const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false}));s.position.set(...pos);s.scale.set(width,size*2,1);parent.add(s);s.userData.setText=value=>{ctx.clearRect(0,0,768,128);ctx.fillStyle=color;ctx.fillText(value,384,80);tex.needsUpdate=true;};return s;}
  function wire(parent,points,color=C.cyan,radius=.025,packets=true){const curve=new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p)),false,'catmullrom',.2);const o=new THREE.Mesh(new THREE.TubeGeometry(curve,64,radius,7,false),mat(color,.25,.5));parent.add(o);if(packets){const dots=[];for(let j=0;j<3;j++){const dot=new THREE.Mesh(new THREE.SphereGeometry(radius*2.5,8,8),new THREE.MeshBasicMaterial({color}));parent.add(dot);dots.push(dot);}parent.add(new THREE.ArrowHelper(curve.getTangentAt(.58).normalize(),curve.getPointAt(.58),.4,color,.17,.12));paths.push({curve,dots,parent});}return o;}
  const floor=mesh(new THREE.PlaneGeometry(100,100),0x101d2b,scene,0,-.11,0,.15);floor.rotation.x=-Math.PI/2;
@@ -79,8 +81,8 @@ export function createWorld(host,onSelect,monitorCanvas){
  renderer.domElement.addEventListener('pointerup',e=>{if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>5)return;const r=renderer.domElement.getBoundingClientRect();pointer.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(pointer,camera);const hits=ray.intersectObjects(selectable,true).filter(h=>{let p=h.object;while(p){if(!p.visible)return false;p=p.parent;}return true;});if(hits.length){let o=hits[0].object;while(!o.userData.part&&o.parent)o=o.parent;const id=o.userData.part;if(id==='nut')onSelect('tracking');else onSelect(id);}});
  const resize=()=>{const w=host.clientWidth,h=host.clientHeight;renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();};new ResizeObserver(resize).observe(host);resize();
  function setView(v){view=v;physical.visible=v!=='fpga';chip.visible=v==='fpga';for(const l of labels)l.el.hidden=(l.parent===chip)!==(v==='fpga');if(highlight){scene.remove(highlight);highlight.geometry.dispose();highlight.material.dispose();highlight=null;}
-  const poses={overview:OVERVIEW_POSE,camera:[[.02,11,.01],[0,3.4,0]],fpga:[[13,17,20],[0,.3,.5]],exploded:[[20,22,-27],[-1,5,0]]};const [p,t]=poses[v];
-  if(v==='overview'){
+  const poses={overview:OVERVIEW_POSE,camera:[[.02,11,.01],[0,3.4,0]],fpga:[[13,17,20],[0,.3,.5]],exploded:OVERVIEW_POSE};const [p,t]=poses[v];
+  if(v==='overview'||v==='exploded'){
    // Clear the old orbit momentum so a reset cannot drift back to an oblique view.
    const damping=controls.enableDamping;controls.enableDamping=false;controls.reset();
    camera.position.set(...p);controls.target.set(...t);controls.update();

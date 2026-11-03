@@ -149,7 +149,7 @@ export const parts={
     "description": "USB 2.0 / V4L2 接收 640×400 MJPEG，由 PS 软件解码为 8 bit Gray8，再打包送 PL。",
     "inside": "相机接收、解码、单调采集时间与输入缓冲管理。",
     "connection": "USB/MJPEG → PS 解码 → Gray8 / DDR → AXI DMA MM2S",
-    "evidence": "技术文档专业版的当前链路；JPEG 硬解码前置仅为扩展方向。"
+    "evidence": "技术文档专业版的当前链路；本页采用 PS 解码基线；独立 JPEG PL 候选的限定板测记录见“实现依据与演示边界”，不代表合并快照已完成硬件验收。"
   },
   "rle": {
     "name": "PL 有界 RLE 与行列投影",
@@ -157,7 +157,7 @@ export const parts={
     "description": "逐行编码（行号，起始列，结束列），最多 16,384 游程，并统计行列投影、前景数和游程数。",
     "inside": "RLE_PACKET_V1 包含帧号、参数版本、ROI、阈值、偏移、形态学、状态、长度与校验。",
     "connection": "PL 前景 → RLE_PACKET_V1 / 投影 / 状态 → S2MM → DDR → PS 校验",
-    "evidence": "约 2.3 KB 为典型场景，不承诺固定压缩率；超限可检测，异常帧不进入正常计数。"
+    "evidence": "空包 2,208 B，上限 67,744 B；约 2.3 KB 仅为典型场景，不承诺固定压缩率。超限可检测，异常帧不进入正常计数。"
   },
   "overlay": {
     "name": "PS 灰度仪表盘与脏区刷新",
