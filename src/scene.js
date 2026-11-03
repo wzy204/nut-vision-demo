@@ -29,7 +29,7 @@ export function createWorld(host,onSelect,monitorCanvas){
  const selectable=[],groups={},labels=[],paths=[];
  function group(id,parent=physical){const g=new THREE.Group();g.userData.part=id;parent.add(g);groups[id]=g;selectable.push(g);return g;}
  function label(id,text,p,parent=physical){const el=document.createElement('button');el.className='part-label';el.textContent=text;el.onclick=()=>onSelect(id);host.querySelector('#labels').appendChild(el);labels.push({id,el,p:new THREE.Vector3(...p),parent});}
- function text(parent,str,pos,size=.22,color='#bdd9eb',width=3.5){const c=document.createElement('canvas');c.width=768;c.height=128;const ctx=c.getContext('2d');ctx.font='500 53px Segoe UI, Microsoft YaHei';ctx.textAlign='center';ctx.fillStyle=color;ctx.fillText(str,384,80);const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false}));s.position.set(...pos);s.scale.set(width,size*2,1);parent.add(s);return s;}
+ function text(parent,str,pos,size=.22,color='#bdd9eb',width=3.5){const c=document.createElement('canvas');c.width=768;c.height=128;const ctx=c.getContext('2d');ctx.font='500 53px Segoe UI, Microsoft YaHei';ctx.textAlign='center';ctx.fillStyle=color;ctx.fillText(str,384,80);const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false}));s.position.set(...pos);s.scale.set(width,size*2,1);parent.add(s);s.userData.setText=value=>{ctx.clearRect(0,0,768,128);ctx.fillStyle=color;ctx.fillText(value,384,80);tex.needsUpdate=true;};return s;}
  function wire(parent,points,color=C.cyan,radius=.025,packets=true){const curve=new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p)),false,'catmullrom',.2);const o=new THREE.Mesh(new THREE.TubeGeometry(curve,64,radius,7,false),mat(color,.25,.5));parent.add(o);if(packets){const dots=[];for(let j=0;j<3;j++){const dot=new THREE.Mesh(new THREE.SphereGeometry(radius*2.5,8,8),new THREE.MeshBasicMaterial({color}));parent.add(dot);dots.push(dot);}parent.add(new THREE.ArrowHelper(curve.getTangentAt(.58).normalize(),curve.getPointAt(.58),.4,color,.17,.12));paths.push({curve,dots,parent});}return o;}
  const floor=mesh(new THREE.PlaneGeometry(100,100),0x101d2b,scene,0,-.11,0,.15);floor.rotation.x=-Math.PI/2;
  const grid=new THREE.GridHelper(70,70,0x294052,0x1b2c3c);grid.position.y=-.09;grid.material.transparent=true;grid.material.opacity=.65;scene.add(grid);
@@ -56,23 +56,28 @@ export function createWorld(host,onSelect,monitorCanvas){
  const nutGeo=createNutGeometry();
  const nutPool=[];for(let i=0;i<MAX_QUANTITY;i++){const n=new THREE.Mesh(nutGeo,mat(0xc8d2db,.9,.26));n.userData.part='nut';physical.add(n);nutPool.push(n);selectable.push(n);}
  // Expanded chip: logical topology, not physical silicon floorplan.
- box(chip,[14,.14,7],[0,.1,0],0x122638,.25);for(const z of [-3.5,3.5])glowBox(chip,[14,.035,.025],[0,.19,z],C.cyan,.5);
- const nodes=[['capture','ACQUIRE / DECODE',[-5,0,-2.5],[2.4,.6,1],C.gold],['gray','GRAY8',[-2,0,-2.5],[2,.6,1],C.purple],['roi','ROI',[.8,0,-2.5],[2,.6,1],C.purple],['threshold','THRESHOLD',[3.6,0,-2.5],[2.4,.6,1],C.purple],['morph','3x3 MORPH',[3.6,0,0],[2.4,.6,1],C.purple],['rle','RLE',[.8,0,0],[2,.6,1],C.purple],['tracking','PS RLE / TRACK',[-2.4,0,0],[2.7,.6,1],C.blue],['ps','PS CONTROL',[-5.3,0,0],[2,.6,1],C.blue],['overlay','PL OVERLAY',[2.7,0,2.6],[3,.6,1],C.gold],['web','WEB AUX',[-2.4,0,2.6],[2.5,.6,1],C.blue]];
- for(const [id,title,pos,size,color]of nodes){const g=group(id,chip);g.position.set(pos[0],.5,pos[2]);box(g,size,[0,0,0],0x234052);glowBox(g,[size[0]-.1,.035,.055],[0,size[1]/2+.02,size[2]/2-.04],color);text(g,title,[0,.65,0],.15,`#${color.toString(16)}`,size[0]+.3);label(id,parts[id].name,[pos[0],1.8,pos[2]],chip);for(let j=0;j<7;j++)box(g,[.07,.07,.14],[-size[0]/2+.2+j*.25,0,-size[2]/2-.06],C.gold);}
- for(let r=0;r<3;r++)for(let c=0;c<16;c++)glowBox(groups.morph,[.1,.025,.09],[-.97+c*.125,.34,-.35+r*.18],r===1?C.cyan:C.purple,.65);
- const route=[[-5,.96,-2.5],[-2,.96,-2.5],[.8,.96,-2.5],[3.6,.96,-2.5],[3.6,.96,0],[.8,.96,0],[-2.4,.96,0]];
+ box(chip,[16,.14,12],[0,.1,.4],0x122638,.25);
+ const layerNames=['01 ACQUIRE / DECODE','02 PL PIXELS / RLE ENCODE','03 PS REGIONS / TRACK / COUNT','04 VIDEO COMPOSE / DISPLAY'];
+ for(let i=0;i<4;i++){const z=-4+i*2.8;glowBox(chip,[15,.025,.025],[0,.19,z-1.1],i===2?C.blue:C.cyan,.5);text(chip,layerNames[i],[-4.5,.22,z-.9],.13,'#bed7e9',5.5);}
+ const nodes=[['capture','ACQUIRE / DECODE',[-3,0,-4],[3,.6,1],C.gold],['gray','GRAY8',[-5.5,0,-1.2],[2,.6,1],C.purple],['roi','ROI',[-2.8,0,-1.2],[2,.6,1],C.purple],['threshold','THRESHOLD',[0,0,-1.2],[2.2,.6,1],C.purple],['morph','3x3 MORPH',[2.8,0,-1.2],[2.2,.6,1],C.purple],['rle','PL RLE + FRG1',[5.5,0,-1.2],[2.3,.6,1],C.purple],['ps','PS CONTROL',[-4.8,0,1.6],[2.3,.6,1],C.blue],['tracking','PS FRG1 / TRACK',[.3,0,1.6],[5,.6,1],C.blue],['overlay','T7 BINARY OVERLAY',[2.5,0,4.4],[3.8,.6,1],C.gold],['web','WEB AUX',[-3.8,0,4.4],[2.5,.6,1],C.blue]];
+ const nodeTitles={};
+ for(const [id,title,pos,size,color]of nodes){const g=group(id,chip);g.position.set(pos[0],.5,pos[2]);box(g,size,[0,0,0],0x234052);glowBox(g,[size[0]-.1,.035,.055],[0,size[1]/2+.02,size[2]/2-.04],color);nodeTitles[id]=text(g,title,[0,.65,0],.15,`#${color.toString(16)}`,size[0]+.3);label(id,parts[id].name,[pos[0],1.8,pos[2]],chip);}
+ const route=[[-3,.96,-4],[-5.5,.96,-1.2],[-2.8,.96,-1.2],[0,.96,-1.2],[2.8,.96,-1.2],[5.5,.96,-1.2],[5.5,.96,1.6],[.3,.96,1.6]];
  for(let i=0;i<route.length-1;i++)wire(chip,[route[i],route[i+1]],C.cyan,.035);
- wire(chip,[[-2,.96,-2.5],[-2,1.7,-1.2],[5.8,1.7,-1.2],[5.8,1.7,2.6],[2.7,.96,2.6]],C.purple,.035);
- wire(chip,[[-2.4,.96,0],[-2.4,1.2,1.3],[2.7,1.2,1.3],[2.7,.96,2.6]],C.blue,.025);
- wire(chip,[[-2.4,.96,0],[-2.4,.96,2.6]],C.blue,.025);
- text(chip,'GRAY VIDEO + PS METADATA → PL OVERLAY → VDMA / HDMI',[0,.3,4.2],.13,'#d9b97c',10);
- text(chip,'TARGET / INTEGRATION · NOT B2 ACCEPTANCE',[0,.3,-3.7],.13,'#d9b97c',9);
+ // Independent image-video branch and target metadata branch converge at the compositor.
+ wire(chip,[[2.8,.96,-1.2],[-7,1.5,-1.2],[-7,1.5,3],[2.5,1.5,3],[2.5,.96,4.4]],C.purple,.035);
+ wire(chip,[[.3,.96,1.6],[.3,1.2,2.4],[2.5,1.2,2.4],[2.5,.96,4.4]],C.blue,.025);
+ wire(chip,[[.3,.96,1.6],[-3.8,.96,1.6],[-3.8,.96,4.4]],C.blue,.025);
+ wire(chip,[[2.5,.96,4.4],[6.8,.96,4.4]],C.gold,.035);
+ text(chip,'VDMA / HDMI',[6.4,.3,5.5],.13,'#d9b97c',3);
+ text(chip,'MASK + FRAME ID / VSYNC / ACK',[0,.3,6.7],.13,'#d9b97c',11);
+ const modeNotice=text(chip,'JPEG / FRG1 / T7 CANDIDATE',[1.6,.3,-5.6],.13,'#d9b97c',8);
  const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();let down=null,focus=null,view='overview',highlight=null;
  renderer.domElement.addEventListener('pointerdown',e=>down=[e.clientX,e.clientY]);
  renderer.domElement.addEventListener('pointerup',e=>{if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>5)return;const r=renderer.domElement.getBoundingClientRect();pointer.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(pointer,camera);const hits=ray.intersectObjects(selectable,true).filter(h=>{let p=h.object;while(p){if(!p.visible)return false;p=p.parent;}return true;});if(hits.length){let o=hits[0].object;while(!o.userData.part&&o.parent)o=o.parent;const id=o.userData.part;if(id==='nut')onSelect('tracking');else onSelect(id);}});
  const resize=()=>{const w=host.clientWidth,h=host.clientHeight;renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();};new ResizeObserver(resize).observe(host);resize();
  function setView(v){view=v;physical.visible=v!=='fpga';chip.visible=v==='fpga';for(const l of labels)l.el.hidden=(l.parent===chip)!==(v==='fpga');if(highlight){scene.remove(highlight);highlight.geometry.dispose();highlight.material.dispose();highlight=null;}
-  const poses={overview:[[18,19,-25],[-1,4,0]],camera:[[.02,11,.01],[0,3.4,0]],fpga:[[10,12,14],[0,.3,.2]],exploded:[[20,22,-27],[-1,5,0]]};const [p,t]=poses[v];focus={p:new THREE.Vector3(...p),t:new THREE.Vector3(...t)};
+  const poses={overview:[[18,19,-25],[-1,4,0]],camera:[[.02,11,.01],[0,3.4,0]],fpga:[[13,17,20],[0,.3,.5]],exploded:[[20,22,-27],[-1,5,0]]};const [p,t]=poses[v];focus={p:new THREE.Vector3(...p),t:new THREE.Vector3(...t)};
   controls.maxDistance=v==='fpga'?36:65;
  }
  function select(id){if(highlight){scene.remove(highlight);highlight.geometry.dispose();highlight.material.dispose();}const obj=groups[id];highlight=obj&&((view==='fpga')===(obj.parent===chip))?new THREE.BoxHelper(obj,C.cyan):null;if(highlight)scene.add(highlight);}
@@ -96,5 +101,5 @@ export function createWorld(host,onSelect,monitorCanvas){
   renderer.render(scene,camera);
  }
  controls.addEventListener('start',()=>focus=null);
- return{update,setView,select,renderer,scene,camera,cadMetadata,invalidateScreen:()=>{screenTexture.needsUpdate=true;}};
+ return{update,setView,select,setArchitectureMode:mode=>{const target=mode==='target';nodeTitles.capture.userData.setText(target?'PS PREFLIGHT / PL JPEG':'USB MJPEG / PS DECODE');nodeTitles.overlay.userData.setText(target?'T7 BINARY OVERLAY':'PS COMPOSER / DIRTY UPDATE');modeNotice.userData.setText(target?'JPEG / FRG1 / T7 CANDIDATE':'P12-R4 / DISPLAY: PS TO VDMA HDMI');},renderer,scene,camera,cadMetadata,invalidateScreen:()=>{screenTexture.needsUpdate=true;}};
 }

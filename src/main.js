@@ -1,7 +1,10 @@
 import './style.css';
+import {journeys,branchMarkup,performanceMarkup} from './journey.js';
+import {encodeRLE} from './rle.js';
+let architectureMode='target',stages=journeys.target;
 import {architectureMarkup} from './architecture.js';
 import { Simulation, W, H, COUNT_X } from './vision.js';
-import { parts, stages, evidenceHTML } from './content.js';
+import { parts, evidenceHTML } from './content.js';
 import { createWorld } from './scene.js';
 import { MIN_MIXED_QUANTITY, MAX_QUANTITY } from './nut.js';
 
@@ -19,9 +22,9 @@ labelToggle.onclick=()=>{
  labelToggle.setAttribute('aria-pressed',String(visible));
 };
 const architecture=document.createElement('section');architecture.className='architecture-panel';document.querySelector('.dashboard').appendChild(architecture);
-function renderArchitecture(mode='target'){architecture.innerHTML=architectureMarkup(mode);architecture.querySelectorAll('[data-architecture]').forEach(b=>b.onclick=()=>renderArchitecture(b.dataset.architecture));architecture.querySelectorAll('[data-part]').forEach(b=>b.onclick=()=>{changeView('fpga');selectPart(b.dataset.part);});}
+function renderArchitecture(mode='target'){architectureMode=mode;stages=journeys[mode];architecture.innerHTML=architectureMarkup(mode);architecture.querySelectorAll('[data-architecture]').forEach(b=>b.onclick=()=>switchArchitecture(b.dataset.architecture));architecture.querySelectorAll('[data-part]').forEach(b=>b.onclick=()=>{changeView('fpga');selectPart(b.dataset.part);});}
 renderArchitecture();
-const config={speed:.035,threshold:128,quantity:12,spacing:23/1000*24,morph:'bypass',touching:false,split:true};
+const config={speed:.035,threshold:128,quantity:12,spacing:23/1000*24,morph:'bypass',touching:false,split:false};
 const sim=new Simulation(config);
 $('quantity').max=MAX_QUANTITY;
 let playing=true,view='overview',stage=0,walkMode=false,world=null,accumulator=0,last=0,dirty=true,renderFrames=0,renderStart=0;
@@ -37,10 +40,17 @@ for(const child of [...$('selection').children])if(child.id!=='closeDetail')deta
 $('selection').appendChild(detailBody);
 const image=grayCtx.createImageData(W,H);
 const pipeline=$('pipeline');
-stages.forEach((s,i)=>{const b=document.createElement('button');b.innerHTML=`${s[0]}<small>${s[1]}</small>`;b.onclick=()=>{setStage(i);selectPart(s[3]);};pipeline.appendChild(b);});
+const journeyTabs=document.createElement('div');journeyTabs.className='architecture-tabs journey-tabs';pipeline.before(journeyTabs);
+const branches=document.createElement('div');branches.id='journeyBranches';document.querySelector('.stage-explanation').after(branches);
+const performance=document.createElement('div');performance.innerHTML=performanceMarkup;document.querySelector('.metrics').after(performance.firstElementChild);
+function renderJourney(){pipeline.replaceChildren();journeyTabs.innerHTML=`<button data-mode="target" aria-pressed="${architectureMode==='target'}">默认 JPEG-PL / T7 候选</button><button data-mode="baseline" aria-pressed="${architectureMode==='baseline'}">离线 / 软件解码路径</button>`;journeyTabs.querySelectorAll('button').forEach(b=>b.onclick=()=>switchArchitecture(b.dataset.mode));branches.innerHTML=branchMarkup(architectureMode);
+stages.forEach((s,i)=>{const b=document.createElement('button');b.innerHTML=`${s[0]}<small>${s[1]}</small>`;b.onclick=()=>{setStage(i);selectPart(s[3]);};pipeline.appendChild(b);});}
+function switchArchitecture(mode){config.split=mode!=='target';$('split').disabled=mode==='target';$('split').classList.toggle('on',config.split);$('split').setAttribute('aria-checked',String(config.split));sim.advance(0);renderArchitecture(mode);world?.setArchitectureMode(mode);renderJourney();setStage(stage);if(!$('selection').hidden)selectPart(selectedPart);dirty=true;}
+renderJourney();
+let selectedPart=null;
 function setStage(i){stage=i;pipeline.querySelectorAll('button').forEach((b,j)=>b.classList.toggle('active',i===j));$('stageIndex').textContent=`0${i+1} / 07`;$('stageText').textContent=stages[i][2];}
 setStage(0);
-function selectPart(id){const p=parts[id];if(!p)return;for(const [key,value]of Object.entries({partCategory:p.category,partName:p.name,partDescription:p.description,partInside:p.inside,partConnection:p.connection,partEvidence:p.evidence}))$(key).textContent=value;$('selection').hidden=false;detailBody.scrollTop=0;world?.select(id);moduleButton.hidden=!['camera','board','monitor'].includes(id);moduleButton.textContent=id==='board'?'进入 PS / PL 内部 →':'打开视觉检测视角 →';moduleButton.onclick=()=>{changeView(id==='board'?'fpga':'camera');};}
+function selectPart(id){if(!parts[id])return;selectedPart=id;const p={...parts[id]};if(id==='monitor'){p.connection=architectureMode==='target'?parts.overlay.connection:'PS DashboardComposer（脏数据更新） → VideoPump / VDMA → HDMI';}for(const [key,value]of Object.entries({partCategory:p.category,partName:p.name,partDescription:p.description,partInside:p.inside,partConnection:p.connection,partEvidence:p.evidence}))$(key).textContent=value;$('selection').hidden=false;detailBody.scrollTop=0;world?.select(id);moduleButton.hidden=!['camera','board','monitor'].includes(id);moduleButton.textContent=id==='board'?'进入 PS / PL 内部 →':'打开视觉检测视角 →';moduleButton.onclick=()=>{changeView(id==='board'?'fpga':'camera');};}
 $('closeDetail').onclick=()=>{$('selection').hidden=true;world?.select(null);};
 const views={overview:['01','物料视觉计数 · 系统总览','连续送料 → 图像采集 → 硬件加速 → 跟踪计数'],camera:['02','摄像头视角 · 目标检测与越线','顶视观察检测区；下方灰度图和二值图与目标运动同步'],fpga:['03','进入 Zynq · PS / PL 协同处理','四层逻辑：采集卸载 → PL 像素 / RLE → PS 决策；独立 PL 合成显示'],exploded:['04','分模块剖视 · 硬件连接','展开相机、灯架与接料盒，板卡保留原安装位置']};
 function changeView(v){view=v;const [code,title,desc]=views[v];$('sceneCode').textContent=code;$('sceneTitle').textContent=title;$('sceneDescription').textContent=desc;$('chipLegend').hidden=v!=='fpga';pixelInspector.hidden=v!=='fpga';document.querySelectorAll('.view').forEach(b=>b.classList.toggle('active',b.dataset.view===v));$('selection').hidden=true;world?.setView(v);dirty=true;}
@@ -78,15 +88,21 @@ function drawVision(){
  for(const t of sim.current){const b=t.box,color=t.counted?'#63e7ce':'#82baff';ctx.strokeStyle=color;ctx.lineWidth=3;ctx.strokeRect(b.minX-3,b.minY-3,b.maxX-b.minX+6,b.maxY-b.minY+6);ctx.beginPath();t.path.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.stroke();ctx.fillStyle=color;ctx.fillText(`ID ${String(t.id).padStart(3,'0')}${t.counted?' ✓':''}`,Math.max(2,b.minX-2),Math.max(44,b.minY-10));ctx.beginPath();ctx.arc(t.x,t.y,3,0,Math.PI*2);ctx.fill();}
  ctx.restore();
  $('total').textContent=String(sim.tracker.total).padStart(4,'0');$('targets').textContent=String(sim.current.length).padStart(2,'0');$('foreground').textContent=`前景 ${sim.binary.reduce((a,b)=>a+(b>0),0).toLocaleString()} px`;$('recognition').textContent=`${sim.runCount} 游程 → ${sim.regions} 区域 → ${sim.current.length} 目标`;$('frameNumber').textContent=`FRAME ${String(sim.frame).padStart(6,'0')}`;$('simTime').textContent=`SIM ${String(Math.floor(sim.time/60)).padStart(2,'0')}:${(sim.time%60).toFixed(2).padStart(5,'0')}`;
- mc.fillStyle='#0c1722';mc.fillRect(0,0,640,460);mc.fillStyle='#6ae6cf';mc.font='bold 25px Segoe UI';mc.fillText('NUT VISION / PYNQ-Z2',24,37);mc.fillStyle='#748da5';mc.font='14px Segoe UI';mc.fillText('TARGET PL OVERLAY • TEACHING SIMULATION',24,61);mc.drawImage($('gray'),0,0,W,H,24,107.5,440,275);
+ mc.fillStyle='#0c1722';mc.fillRect(0,0,640,460);mc.fillStyle='#6ae6cf';mc.font='bold 25px Segoe UI';mc.fillText('NUT VISION / PYNQ-Z2',24,37);mc.fillStyle='#748da5';mc.font='14px Segoe UI';mc.fillText('TARGET PL OVERLAY • TEACHING SIMULATION',24,61);mc.drawImage($('binary'),0,0,W,H,24,107.5,440,275);
  // Browser illustration of the target PL gray-video + metadata overlay.
  mc.save();mc.translate(24,107.5);mc.scale(440/W,275/H);mc.strokeStyle='#d9ab68';mc.lineWidth=2;mc.beginPath();mc.moveTo(COUNT_X,0);mc.lineTo(COUNT_X,H);mc.stroke();mc.font='16px Consolas';
  for(const t of sim.current){const b=t.box;mc.strokeStyle=t.counted?'#63e7ce':'#82baff';mc.fillStyle=mc.strokeStyle;mc.strokeRect(b.minX,b.minY,b.maxX-b.minX,b.maxY-b.minY);mc.fillText('ID '+t.id,b.minX,Math.max(18,b.minY-5));}mc.restore();mc.fillStyle='#90a9bc';mc.font='16px Segoe UI';mc.fillText('COUNT',490,110);mc.fillStyle='#61ead2';mc.font='bold 49px Consolas';mc.fillText(String(sim.tracker.total).padStart(3,'0'),482,166);mc.fillStyle='#90a9bc';mc.font='16px Segoe UI';mc.fillText('TARGETS',482,218);mc.fillStyle='#deeaf5';mc.font='32px Consolas';mc.fillText(String(sim.current.length).padStart(2,'0'),490,260);mc.fillStyle='#90a9bc';mc.font='14px Segoe UI';mc.fillText('30 FPS',487,330);mc.fillText('SIM CLOCK',480,353);mc.fillStyle='#d9ac69';mc.font='15px Segoe UI';mc.fillText('TRACK ID → CROSS LINE → COUNT ONCE',24,439);
  const cx=Math.min(W-2,Math.max(1,Math.round(sim.current[0]?.x??COUNT_X)+9)),cy=Math.min(H-2,Math.max(1,Math.round(sim.current[0]?.y??H/2)));let all=255,any=0;
  $('pixelGrid').querySelectorAll('span').forEach((cell,i)=>{const x=cx+(i%3)-1,y=cy+Math.floor(i/3)-1,g=sim.gray[y*W+x],b=g>=config.threshold?255:0;cell.textContent=g;cell.style.background=b?'#a4e9dc':'#1a2938';cell.style.color=b?'#102b29':'#7c98b1';all&=b;any|=b;});
  $('pixelLocation').textContent=`x=${cx}, y=${cy} · T=${config.threshold}`;$('pixelResult').textContent=`AND = ${all} · OR = ${any}`;
- world?.invalidateScreen();dirty=false;
+ drawRLE();world?.invalidateScreen();dirty=false;
 }
+const rlePanel=document.createElement('section');rlePanel.className='rle-panel';rlePanel.innerHTML='<div class="section-title">行游程 → 连通区域 → 目标 ID → 越线事件</div><p>PL 编码（y, x0, x1） → PS 合并相邻行游程并分析区域 → 目标关联 / 方向判断 → 首次越线累计一次</p><canvas id="rleMap" width="640" height="160" aria-label="实际二值掩码的行游程图"></canvas><label>查看行号 y <input id="rleRow" type="range" min="0" max="399" value="200"><output id="rleRowValue">200</output></label><p id="rleSample"></p><p id="rleState"></p><small>此窗为离线 RLE 教学模型：实际执行逐行 RLE 与八连通合并；不代表默认 JPEG / FRG1 硬件执行。孔洞分离仅在软件路径启用。教学游程格式并非板端 DMA ABI，不执行板端原生代码。</small>';document.querySelector('.vision-panel').appendChild(rlePanel);
+let cachedRuns=[];const rleCtx=$('rleMap').getContext('2d');
+function drawRLE(refresh=true){if(refresh)cachedRuns=encodeRLE(sim.binary,W,H);const y=Number($('rleRow').value);$('rleRowValue').textContent=y;rleCtx.fillStyle='#091421';rleCtx.fillRect(0,0,640,160);rleCtx.lineWidth=1;for(let color=0;color<3;color++){rleCtx.strokeStyle=['#62e7cf','#80baff','#b6a1ed'][color];rleCtx.beginPath();for(const r of cachedRuns)if(r.y%3===color){rleCtx.moveTo(r.x0,r.y*.4);rleCtx.lineTo(r.x1+1,r.y*.4);}rleCtx.stroke();}rleCtx.strokeStyle='#e7b763';rleCtx.beginPath();rleCtx.moveTo(0,y*.4);rleCtx.lineTo(640,y*.4);rleCtx.stroke();const row=cachedRuns.filter(r=>r.y===y);$('rleSample').textContent=row.length?'y='+y+'：'+row.slice(0,6).map(r=>'['+r.x0+', '+r.x1+']').join('  ')+(row.length>6?' …':''):'y='+y+'：无前景游程；拖动滑块检查其他行。';$('rleState').textContent=sim.runCount+' 游程 → '+sim.regions+' 连通区域 → '+sim.current.length+' 跟踪 ID → 本帧 '+sim.tracker.events.length+' 次越线；累计 '+sim.tracker.total;
+}
+$('rleRow').oninput=()=>drawRLE(false);
+$('split').disabled=true;$('split').classList.remove('on');$('split').setAttribute('aria-checked','false');
 try{drawVision();world=createWorld($('world'),selectPart,monitor);changeView('overview');}
 catch(error){$('error').hidden=false;$('error').textContent=`3D 初始化失败：${error.message}。请使用支持 WebGL2 的桌面浏览器并开启硬件加速；下方像素实验仍可运行。`;console.error(error);}
 playState();
