@@ -9,14 +9,16 @@ import { FOV_HEIGHT } from './vision.js';
 import { buildCadAssembly, beltHeight, trayHeight, cadMetadata } from './cad-model.js';
 
 const C={steel:0x839bad,dark:0x17212b,cyan:0x5ee8cf,blue:0x5baeff,purple:0xb091fa,gold:0xd8aa65};
+// Shared by startup and reset: belt along the horizontal axis, viewed from +Z.
+const OVERVIEW_POSE=[[-1,12.9,24],[-1,4.5,0]];
 export function createWorld(host,onSelect,monitorCanvas){
  const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
  renderer.setPixelRatio(Math.min(devicePixelRatio,1.65));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
  renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;host.appendChild(renderer.domElement);
  const scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0x0d1723,.025);
  const pmrem=new THREE.PMREMGenerator(renderer),room=new RoomEnvironment();scene.environment=pmrem.fromScene(room,.04).texture;room.dispose();pmrem.dispose();
- const camera=new THREE.PerspectiveCamera(40,1,.1,140);camera.position.set(13,12,17);
- const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(-.4,1.1,0);controls.enableDamping=true;controls.minDistance=4;controls.maxDistance=36;controls.maxPolarAngle=Math.PI*.485;
+ const camera=new THREE.PerspectiveCamera(40,1,.1,140);camera.position.set(...OVERVIEW_POSE[0]);
+ const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(...OVERVIEW_POSE[1]);controls.enableDamping=true;controls.minDistance=4;controls.maxDistance=36;controls.maxPolarAngle=Math.PI*.485;controls.update();controls.saveState();
  scene.add(new THREE.HemisphereLight(0xb6dbff,0x102035,2));
  const key=new THREE.DirectionalLight(0xd0e7ff,3.5);key.position.set(-3,20,9);key.castShadow=true;key.shadow.mapSize.set(2048,2048);Object.assign(key.shadow.camera,{left:-16,right:16,top:14,bottom:-14,near:1,far:55});key.shadow.bias=-.0005;scene.add(key);
  const rim=new THREE.DirectionalLight(0x62dddf,2.5);rim.position.set(2,4,-7);scene.add(rim);
@@ -77,7 +79,13 @@ export function createWorld(host,onSelect,monitorCanvas){
  renderer.domElement.addEventListener('pointerup',e=>{if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>5)return;const r=renderer.domElement.getBoundingClientRect();pointer.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(pointer,camera);const hits=ray.intersectObjects(selectable,true).filter(h=>{let p=h.object;while(p){if(!p.visible)return false;p=p.parent;}return true;});if(hits.length){let o=hits[0].object;while(!o.userData.part&&o.parent)o=o.parent;const id=o.userData.part;if(id==='nut')onSelect('tracking');else onSelect(id);}});
  const resize=()=>{const w=host.clientWidth,h=host.clientHeight;renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();};new ResizeObserver(resize).observe(host);resize();
  function setView(v){view=v;physical.visible=v!=='fpga';chip.visible=v==='fpga';for(const l of labels)l.el.hidden=(l.parent===chip)!==(v==='fpga');if(highlight){scene.remove(highlight);highlight.geometry.dispose();highlight.material.dispose();highlight=null;}
-  const poses={overview:[[18,19,-25],[-1,4,0]],camera:[[.02,11,.01],[0,3.4,0]],fpga:[[13,17,20],[0,.3,.5]],exploded:[[20,22,-27],[-1,5,0]]};const [p,t]=poses[v];focus={p:new THREE.Vector3(...p),t:new THREE.Vector3(...t)};
+  const poses={overview:OVERVIEW_POSE,camera:[[.02,11,.01],[0,3.4,0]],fpga:[[13,17,20],[0,.3,.5]],exploded:[[20,22,-27],[-1,5,0]]};const [p,t]=poses[v];
+  if(v==='overview'){
+   // Clear the old orbit momentum so a reset cannot drift back to an oblique view.
+   const damping=controls.enableDamping;controls.enableDamping=false;controls.reset();
+   camera.position.set(...p);controls.target.set(...t);controls.update();
+   controls.enableDamping=damping;focus=null;
+  }else focus={p:new THREE.Vector3(...p),t:new THREE.Vector3(...t)};
   controls.maxDistance=v==='fpga'?36:65;
  }
  function select(id){if(highlight){scene.remove(highlight);highlight.geometry.dispose();highlight.material.dispose();}const obj=groups[id];highlight=obj&&((view==='fpga')===(obj.parent===chip))?new THREE.BoxHelper(obj,C.cyan):null;if(highlight)scene.add(highlight);}
