@@ -1,7 +1,7 @@
 import './style.css';
 import './presentation.css';
 import {stages,branchMarkup,performanceMarkup} from './journey.js';
-import {encodeRLE} from './rle.js';
+
 
 
 import { Simulation, W, H, COUNT_X } from './vision.js';
@@ -39,7 +39,14 @@ $('selection').appendChild(detailBody);
 const image=grayCtx.createImageData(W,H);
 const pipeline=$('pipeline');
 const branches=document.createElement('div');branches.id='journeyBranches';document.querySelector('.stage-explanation').after(branches);
-const performance=document.createElement('div');performance.innerHTML=performanceMarkup;document.querySelector('.metrics').after(performance.firstElementChild);
+// Keep the live vision adjacent to the runtime controls; technical evidence follows.
+const dashboard=document.querySelector('.dashboard');
+const journeyPanel=document.querySelector('.pipeline-panel');
+const performance=document.createElement('div');performance.innerHTML=performanceMarkup;
+dashboard.append(performance.firstElementChild,journeyPanel);
+const parameterDrawer=$('parameterDrawer'),compactLayout=matchMedia('(max-width:850px)');
+parameterDrawer.open=!compactLayout.matches;
+compactLayout.addEventListener('change',event=>{parameterDrawer.open=!event.matches;});
 function renderJourney(){pipeline.replaceChildren();branches.innerHTML=branchMarkup();
 stages.forEach((s,i)=>{const b=document.createElement('button');b.innerHTML=`<span class="stage-number">${String(i+1).padStart(2,'0')}</span><span class="stage-label">${s[0]}<small>${s[1]}</small></span>`;b.onclick=()=>{setStage(i);selectPart(s[3]);};pipeline.appendChild(b);});}
 renderJourney();
@@ -91,13 +98,8 @@ function drawVision(){
  const cx=Math.min(W-2,Math.max(1,Math.round(sim.current[0]?.x??COUNT_X)+9)),cy=Math.min(H-2,Math.max(1,Math.round(sim.current[0]?.y??H/2)));let all=255,any=0;
  $('pixelGrid').querySelectorAll('span').forEach((cell,i)=>{const x=cx+(i%3)-1,y=cy+Math.floor(i/3)-1,g=sim.gray[y*W+x],b=g>=config.threshold?255:0;cell.textContent=g;cell.style.background=b?'#a4e9dc':'#1a2938';cell.style.color=b?'#102b29':'#7c98b1';all&=b;any|=b;});
  $('pixelLocation').textContent=`x=${cx}, y=${cy} · T=${config.threshold}`;$('pixelResult').textContent=`AND = ${all} · OR = ${any}`;
- drawRLE();world?.invalidateScreen();dirty=false;
+ world?.invalidateScreen();dirty=false;
 }
-const rlePanel=document.createElement('section');rlePanel.className='rle-panel';rlePanel.innerHTML='<div class="section-title">行游程 → 连通区域 → 目标 ID → 越线事件</div><p>PL 编码（y, x0, x1） → PS 合并相邻行游程并分析区域 → 目标关联 / 方向判断 → 首次越线累计一次</p><canvas id="rleMap" width="640" height="160" aria-label="实际二值掩码的行游程图"></canvas><label>查看行号 y <input id="rleRow" type="range" min="0" max="399" value="200"><output id="rleRowValue">200</output></label><p id="rleSample"></p><p id="rleState"></p><small>浏览器实际执行逐行 RLE、八连通游程合并与简化孔洞辅助分离。教学游程格式不等同 RLE_PACKET_V1，不执行板端原生代码或完整拆分策略。</small>';document.querySelector('.vision-panel').appendChild(rlePanel);
-let cachedRuns=[];const rleCtx=$('rleMap').getContext('2d');
-function drawRLE(refresh=true){if(refresh)cachedRuns=encodeRLE(sim.binary,W,H);const y=Number($('rleRow').value);$('rleRowValue').textContent=y;rleCtx.fillStyle='#091421';rleCtx.fillRect(0,0,640,160);rleCtx.lineWidth=1;for(let color=0;color<3;color++){rleCtx.strokeStyle=['#62e7cf','#80baff','#b6a1ed'][color];rleCtx.beginPath();for(const r of cachedRuns)if(r.y%3===color){rleCtx.moveTo(r.x0,r.y*.4);rleCtx.lineTo(r.x1+1,r.y*.4);}rleCtx.stroke();}rleCtx.strokeStyle='#e7b763';rleCtx.beginPath();rleCtx.moveTo(0,y*.4);rleCtx.lineTo(640,y*.4);rleCtx.stroke();const row=cachedRuns.filter(r=>r.y===y);$('rleSample').textContent=row.length?'y='+y+'：'+row.slice(0,6).map(r=>'['+r.x0+', '+r.x1+']').join('  ')+(row.length>6?' …':''):'y='+y+'：无前景游程；拖动滑块检查其他行。';$('rleState').textContent=sim.runCount+' 游程 → '+sim.regions+' 连通区域 → '+sim.current.length+' 跟踪 ID → 本帧 '+sim.tracker.events.length+' 次越线；累计 '+sim.tracker.total;
-}
-$('rleRow').oninput=()=>drawRLE(false);
 $('split').disabled=false;$('split').classList.add('on');$('split').setAttribute('aria-checked','true');
 try{drawVision();world=createWorld($('world'),selectPart,monitor);changeView('overview');}
 catch(error){$('error').hidden=false;$('error').textContent=`3D 初始化失败：${error.message}。请使用支持 WebGL2 的桌面浏览器并开启硬件加速；下方像素实验仍可运行。`;console.error(error);}

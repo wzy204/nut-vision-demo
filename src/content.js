@@ -5,7 +5,7 @@ export const parts={
     "description": "采用本次装配中的直线振动料槽，沿阶梯波纹槽面将螺母送向主传送带；机械分料用于减少重叠和粘连。",
     "inside": "原 CAD 长条料槽、波纹槽底、支承与振动底座。",
     "connection": "供电 → 振动控制器 → 送料底座 → 导流出口。",
-    "evidence": "几何来自传送带完整模型.SLDASM；振幅与节拍为教学模拟，未做动力学求解或分料验收。"
+    "evidence": "几何来自传送带完整模型.SLDASM；振幅与节拍为教学模拟，未做动力学求解或分料验收。 仓库未实现送料振动控制。"
   },
   "chute": {
     "name": "料槽导流出口",
@@ -21,15 +21,15 @@ export const parts={
     "description": "深色带面承载螺母从左向右通过成像区，稳定的背景灰度有助于前景提取。",
     "inside": "主动辊、从动辊、环形带、铝型材机架、支脚与侧挡板。",
     "connection": "直流减速电机 → 主动辊；电源 / PWM 驱动模块控制转速。",
-    "evidence": "带速按 CAD 比例 24 场景单位/米换算为 m/s，为模拟设定值，未接入编码器实测反馈。"
+    "evidence": "带速按 CAD 比例 24 场景单位/米换算为 m/s，为模拟设定值，未接入编码器实测反馈。 仓库未实现带速闭环或电机 PWM 控制。"
   },
   "motor": {
     "name": "电机与驱动模块",
     "category": "04 / MOTION CONTROL",
     "description": "驱动主传送带，控制线路与图像数据线路分开。GPIO / PWM 需通过适配驱动器，不能直接带动电机。",
     "inside": "原 CAD 减速电机、直臂安装座与齿轮传动；PWM 驱动器为教学连接示意。",
-    "connection": "24 V → 驱动器 → 电机；PS GPIO / PWM → 电平适配 → 驱动器。",
-    "evidence": "控制与供电拓扑示意，未指定引脚或声称硬件电气验收。"
+    "connection": "机械连接示意：电源 → 适配驱动器 → 减速电机 → 主动辊；GPIO / PWM 为教学连接示意。",
+    "evidence": "当前仓库不包含送料振动、电机 PWM 或带速闭环控制实现；不将示意线路视为已接通的板端控制能力。"
   },
   "camera": {
     "name": "MJPEG 相机输入（模型示意）",
@@ -37,7 +37,7 @@ export const parts={
     "description": "USB 2.0 / V4L2 接收 640×400 MJPEG，由 PS 软件解码为 8 bit Gray8，再打包送 PL。",
     "inside": "现有相机外壳和独立支架保持原 CAD 模型；内部按 USB/MJPEG 采集讲解。",
     "connection": "USB/MJPEG → PS 解码 → Gray8 / DDR → AXI DMA MM2S",
-    "evidence": "机械外观为 CAD 示意，输入、解码和包通路按新版文档说明。"
+    "evidence": "机械外观为 CAD 示意，输入、解码和包通路按新版文档说明。 本详情描述文档软件解码基线，不代表仓库相机入口的默认分派。"
   },
   "light": {
     "name": "工业条形补光灯",
@@ -77,15 +77,15 @@ export const parts={
     "description": "分别为送料、电机、灯光和开发板提供适配供电。功率负载通过驱动级与逻辑控制连接。",
     "inside": "24 V 电源、熔断 / 开关模块、灯光驱动、独立 12 V 板卡电源与控制接口示意。",
     "connection": "24 V → 机械 / 灯光；适配 12 V → PYNQ-Z2；控制信号经驱动和电平适配。",
-    "evidence": "非接线施工图；演示没有固定 GPIO 引脚、电流或电源容量参数。"
+    "evidence": "非接线施工图；演示没有固定 GPIO 引脚、电流或电源容量参数。 本仓库未证明机械执行器控制已实现。"
   },
   "ps": {
-    "name": "PS 游程区域与粘连候选分析",
+    "name": "PS 游程区域分析（软件解码分支）",
     "category": "03 / PS REGION ANALYSIS",
     "description": "包校验通过后按八连通游程合并计算面积、包围框、一阶矩与质心；筛选后仅对粘连候选重建局部掩膜。",
-    "inside": "孔洞种子 / 距离分配，必要时采用地测线分配；无孔洞时分析投影颈部与递归拆分。",
+    "inside": "孔洞种子 / 距离分配，必要时采用测地线分配；无孔洞时分析投影颈部与递归拆分。",
     "connection": "有效 RLE → 区域 / 几何筛选 → 条件局部拆分 → 有序目标列表",
-    "evidence": "拆分须满足面积、完整覆盖、无重叠与几何条件；网页仅实现简化孔洞辅助教学算法。"
+    "evidence": "拆分须满足面积、完整覆盖、无重叠与几何条件；网页仅实现简化孔洞辅助教学算法。 JPEG-PL 相机分支直接使用 PL FRG1 检测记录，不执行此处的 PS 游程区域重建与局部拆分。"
   },
   "ddr": {
     "name": "DDR 帧缓冲",
@@ -131,17 +131,17 @@ export const parts={
     "name": "ROI 与前景特征统计",
     "category": "PL / REGION OF INTEREST",
     "description": "ROI 选通后对灰度做饱和偏移，再进行阈值比较与可选形态学；配置在帧边界生效。",
-    "inside": "坐标计数、ROI 判断、面积累加器；生产级目标特征与序列化 ABI 仍需设计。",
+    "inside": "坐标计数、ROI 判断、前景与投影统计；软件解码分支输出 RLE_PACKET_V1，独立 JPEG-PL 候选另有 FRG1 检测记录接口。",
     "connection": "Gray8 → ROI → 灰度偏移 → 阈值 → 可选形态学 → RLE / 投影",
-    "evidence": "ROI RTL / 交接有依据；正式 PL 目标特征接口是规划项。"
+    "evidence": "两条路径的输出与 PS 职责分别说明；JPEG-PL 候选证据不替代合并快照的匹配硬件构建与验收。"
   },
   "tracking": {
     "name": "PS 轨迹关联与唯一越线计数",
     "category": "03 / PS TRACKING & COUNTING",
-    "description": "按实际采集时间预测运动，在方向、横向偏差、面积比与时间约束下进行一对一有序关联；确认轨迹后以预备状态、越线滞回和已计数标志累计。",
-    "inside": "目标状态、速度预测、轨迹确认、有序关联、滞回、counted 去重；歧义拒绝猜测，长断档不补计。",
-    "connection": "PS 区域列表 + 采集时间 → 轨迹 / 越线事件 → 同帧计数结果 → PS 看板",
-    "evidence": "网页保留 ID 与单次越线交互，不复现全部板端关联和滞回策略；不代表实物准确率。"
+    "description": "默认按帧号间隔关联目标；显式配置 motion_timebase_s 后才按采集时间计算运动间隔。轨迹确认、方向判断、越线滞回与 counted 标志共同实现单次计数。",
+    "inside": "目标状态、轨迹确认、关联门限、越线滞回与 counted 去重；速度预测和有序关联等策略取决于运行配置，不能视为默认全部启用。",
+    "connection": "RLE 分支的 PS 区域列表 / JPEG-PL 分支的 FRG1 检测 → 目标关联 → x 正方向跨越 x=320 → 计数事件",
+    "evidence": "网页保留 ID 与单次越线交互，不复现全部板端关联和滞回策略；不代表实物准确率。 传入 capture_monotonic_ns 本身不等于已启用时间基准。"
   },
   "capture": {
     "name": "PS 相机采集与 MJPEG 解码",
@@ -149,7 +149,7 @@ export const parts={
     "description": "USB 2.0 / V4L2 接收 640×400 MJPEG，由 PS 软件解码为 8 bit Gray8，再打包送 PL。",
     "inside": "相机接收、解码、单调采集时间与输入缓冲管理。",
     "connection": "USB/MJPEG → PS 解码 → Gray8 / DDR → AXI DMA MM2S",
-    "evidence": "技术文档专业版的当前链路；本页采用 PS 解码基线；独立 JPEG PL 候选的限定板测记录见“实现依据与演示边界”，不代表合并快照已完成硬件验收。"
+    "evidence": "技术文档专业版的当前链路；本页采用 PS 解码基线；独立 JPEG PL 候选的限定板测记录见“实现依据与演示边界”，不代表合并快照已完成硬件验收。 相机 / 硬件请求默认分派到 JPEG-PL，显式 --software-decode 才使用软件解码分支；CLI 默认模式为 offline。"
   },
   "rle": {
     "name": "PL 有界 RLE 与行列投影",
