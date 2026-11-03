@@ -1,4 +1,4 @@
-export const parts = {
+export const parts={
   "feeder": {
     "name": "直线振动送料槽",
     "category": "01 / MECHANICAL FEEDING",
@@ -34,10 +34,10 @@ export const parts = {
   "camera": {
     "name": "MJPEG 相机输入（模型示意）",
     "category": "05 / IMAGE ACQUISITION",
-    "description": "PS 接收原始 MJPEG 并预检格式，按压缩长度提交 DMA；默认 JPEG 路径由 PL 解码为 Gray8。相机外观沿用 CAD 示意。",
-    "inside": "相机 / V4L2 压缩帧输入与 PS 格式预检。",
-    "connection": "MJPEG → PS 预检 → MM2S → jpeg_axis_gray",
-    "evidence": "输入限制按 LJ-01 JPEG 候选；不声称支持任意 JPEG。"
+    "description": "USB 2.0 / V4L2 接收 640×400 MJPEG，由 PS 软件解码为 8 bit Gray8，再打包送 PL。",
+    "inside": "现有相机外壳和独立支架保持原 CAD 模型；内部按 USB/MJPEG 采集讲解。",
+    "connection": "USB/MJPEG → PS 解码 → Gray8 / DDR → AXI DMA MM2S",
+    "evidence": "机械外观为 CAD 示意，输入、解码和包通路按新版文档说明。"
   },
   "light": {
     "name": "工业条形补光灯",
@@ -53,7 +53,7 @@ export const parts = {
     "description": "Zynq-7000 把 ARM PS 和 FPGA PL 集成在同一 SoC。选择“进入芯片”查看 PS / DDR / AXI DMA / PL 的协作关系。",
     "inside": "XC7Z020 SoC、DDR3、USB Host、HDMI 输出连接器、电源管理与扩展接口。板级几何与安装位置来自本次 CAD 装配；芯片内部为逻辑示意。",
     "connection": "USB 输入到 PS；PS 与 DDR、AXI DMA 交互；视频输出链路接 HDMI 显示器。",
-    "evidence": "按 LJ-01 默认 JPEG-PL / T7 候选讲解，模块验证、独立板测与完整装置验收分别说明。"
+    "evidence": "当前文档：PS 解码 / 区域决策 / 绘图，PL 50 MHz 前处理与 RLE，VDMA 显示扫描。"
   },
   "collector": {
     "name": "尾端接料盒",
@@ -64,12 +64,12 @@ export const parts = {
     "evidence": "保留装配几何与位置；落料为简化动画，未做碰撞堆积仿真。"
   },
   "monitor": {
-    "name": "HDMI 可视化显示器",
-    "category": "08 / RESULT PRESENTATION",
-    "description": "T7 video_binary_overlay 在 PL 输出二值掩膜、计数线、检测框与累计计数字形，不包含灰度预览及旧中文仪表盘。",
-    "inside": "掩膜双存储体、frame_id、VSYNC 切换、配置发布 / 确认握手；不匹配帧抑制旧叠加。",
-    "connection": "二值掩膜 + PS 同帧目标 / 计数配置 → video_binary_overlay → 视频输出链 / HDMI",
-    "evidence": "独立 RTL XSim、候选实现及板内 monitor 各验证对应范围，不等同外接屏验收。"
+    "name": "VDMA / HDMI 同帧本地显示",
+    "category": "04 / LOCAL DISPLAY",
+    "description": "1280×720 灰度画布经 AXI VDMA MM2S 与 HDMI 前端输出；处理速率下降时重复最近完整画面，未完成画布不参与扫描。",
+    "inside": "DDR 显示缓冲、帧边界切换、HDMI 时序与 TMDS；计数结果和画面以 frame_id 关联。",
+    "connection": "PS 完整画布 → DDR → VDMA → HDMI 前端 → 显示器",
+    "evidence": "570 帧空场景会话及 368 组同帧一致性按文档范围说明。模型屏幕是教学示意，不是实拍。"
   },
   "power": {
     "name": "供电与控制模块",
@@ -80,12 +80,12 @@ export const parts = {
     "evidence": "非接线施工图；演示没有固定 GPIO 引脚、电流或电源容量参数。"
   },
   "ps": {
-    "name": "ARM 处理系统 · PS",
-    "category": "ZYNQ / PROCESSING SYSTEM",
-    "description": "默认 JPEG 路径校验 valid / status 及 FRG1 签名、完成、frame_id、记录数和几何后复查，交给跟踪器筛选、关联和越线计数。",
-    "inside": "FRG1 检测筛选、实际时间关联、轨迹确认、方向 / 迟滞及已计数标志。",
-    "connection": "FRG1 → read_frg_detections → tracker.update_detections → publish_overlay",
-    "evidence": "默认路径不调用 RleCounter.update_rle 或局部粘连拆分。"
+    "name": "PS 游程区域与粘连候选分析",
+    "category": "03 / PS REGION ANALYSIS",
+    "description": "包校验通过后按八连通游程合并计算面积、包围框、一阶矩与质心；筛选后仅对粘连候选重建局部掩膜。",
+    "inside": "孔洞种子 / 距离分配，必要时采用地测线分配；无孔洞时分析投影颈部与递归拆分。",
+    "connection": "有效 RLE → 区域 / 几何筛选 → 条件局部拆分 → 有序目标列表",
+    "evidence": "拆分须满足面积、完整覆盖、无重叠与几何条件；网页仅实现简化孔洞辅助教学算法。"
   },
   "ddr": {
     "name": "DDR 帧缓冲",
@@ -100,16 +100,16 @@ export const parts = {
     "category": "TRANSPORT / AXI4-STREAM",
     "description": "MM2S 从 DDR 读取数据转换为流；S2MM 将流结果写回 DDR。只有 TVALID 与 TREADY 同时有效时，数据拍才被接收。",
     "inside": "内存映射主接口、流接口、长度 / 状态寄存器；需要适配图像帧 / 行标记与包边界。",
-    "connection": "DDR → MM2S → 像素 / 标记适配 → PL；PL RLE → 包适配 → S2MM → DDR → PS 原生 RLE 连通域。",
+    "connection": "PS Gray8 包 / DDR → MM2S → PL 前处理 / RLE → S2MM → DDR → PS 包校验",
     "evidence": "仓库有隔离 DMA 实验与 S2MM 证据；教学图不替代生产接口冻结。"
   },
   "gray": {
-    "name": "PL JPEG 硬解码与 Gray8",
-    "category": "PL / PIXEL FRONTEND",
-    "description": "默认由 PL jpeg_axis_gray 硬解码生成 Gray8。640×400、8 bit 基线 JPEG、4:2:2、单扫描、DRI=40；最大 512,000 B，头缓存 4,096 B。",
-    "inside": "头部验证、熵解码、系数检查、IDCT、MCU 重排、Gray8 输出。",
-    "connection": "AXI4-Stream：TDATA、TVALID、TREADY、TUSER[0]、TLAST；具体 DMA 包边界需单独适配。",
-    "evidence": "D695 CSim、C/RTL 联合仿真和独立 OOC 结果各有范围；格式预检不替代 PL 最终校验。"
+    "name": "PL Gray8 解包与灰度适配",
+    "category": "02 / PL PIXEL FRONTEND",
+    "description": "从 32 bit beat 按字节恢复灰度像素，并产生行同步、帧起始和帧号；输入像素已由 PS 解码。",
+    "inside": "16 B 包头、256,000 B 像素、16 B 包尾；TKEEP / TLAST、几何和帧号检查。",
+    "connection": "MM2S → Gray8 适配 → ROI / 灰度偏移 / 阈值",
+    "evidence": "256,032 B 为输入传输包字节数，不是带宽或 PL 延迟实测。"
   },
   "threshold": {
     "name": "阈值二值化",
@@ -123,57 +123,57 @@ export const parts = {
     "name": "3 × 3 形态学",
     "category": "PL / LOCAL NEIGHBORHOOD",
     "description": "腐蚀对九个前景位取 AND，膨胀取 OR。可抑制部分噪点，但也可能抹去小目标、填孔或合并相邻区域。图像边界补零。",
-    "inside": "当前 RTL：3 个旋转一位行存储 + 横向移位寄存器 + LUT / FF。320 宽模式 OOC 为分布式 RAM，BRAM=0。",
+    "inside": "3×3 邻域使用三行行缓存，不缓存整帧；背压时保持数据和侧带稳定。",
     "connection": "二值流 → 行缓存 / 3×3 窗口 → AND / OR → 二值流；接收行与输出行交替。",
-    "evidence": "84/84 仿真通过；MODE 是编译期参数。约 2WH+H 拍引擎工作量，非全帧 1 px/clk。"
+    "evidence": "RLE 流水线 8 项 XSim 与综合后网表通过，具体范围见新版技术文档。网页切换为教学模型。"
   },
   "roi": {
     "name": "ROI 与前景特征统计",
     "category": "PL / REGION OF INTEREST",
-    "description": "按图像坐标限制感兴趣区域并统计前景。前景总面积是特征，不能直接除以单颗面积作为可靠的螺母数量。",
+    "description": "ROI 选通后对灰度做饱和偏移，再进行阈值比较与可选形态学；配置在帧边界生效。",
     "inside": "坐标计数、ROI 判断、面积累加器；生产级目标特征与序列化 ABI 仍需设计。",
-    "connection": "PL Gray8 → ROI / 饱和灰度偏移 / 阈值 / 可选形态学 → RLE + FRG1",
+    "connection": "Gray8 → ROI → 灰度偏移 → 阈值 → 可选形态学 → RLE / 投影",
     "evidence": "ROI RTL / 交接有依据；正式 PL 目标特征接口是规划项。"
   },
   "tracking": {
-    "name": "PS FRG1 跟踪与越线计数",
-    "category": "LAYER 03 / TRACKING",
-    "description": "默认 JPEG 路径校验 valid / status 及 FRG1 签名、完成、frame_id、记录数和几何后复查，交给跟踪器筛选、关联和越线计数。",
-    "inside": "FRG1 检测筛选、实际时间关联、轨迹确认、方向 / 迟滞及已计数标志。",
-    "connection": "FRG1 → read_frg_detections → tracker.update_detections → publish_overlay",
-    "evidence": "默认 JPEG runner 不执行 RLE 区域重建与局部拆分；浏览器仅作 RLE 教学模型。"
+    "name": "PS 轨迹关联与唯一越线计数",
+    "category": "03 / PS TRACKING & COUNTING",
+    "description": "按实际采集时间预测运动，在方向、横向偏差、面积比与时间约束下进行一对一有序关联；确认轨迹后以预备状态、越线滞回和已计数标志累计。",
+    "inside": "目标状态、速度预测、轨迹确认、有序关联、滞回、counted 去重；歧义拒绝猜测，长断档不补计。",
+    "connection": "PS 区域列表 + 采集时间 → 轨迹 / 越线事件 → 同帧计数结果 → PS 看板",
+    "evidence": "网页保留 ID 与单次越线交互，不复现全部板端关联和滞回策略；不代表实物准确率。"
   },
   "capture": {
-    "name": "PS MJPEG 接收与预检",
-    "category": "LAYER 01 / ACQUISITION",
-    "description": "PS 接收原始 MJPEG 并预检格式，按压缩长度提交 DMA；默认 JPEG 路径由 PL 解码为 Gray8。相机外观沿用 CAD 示意。",
-    "inside": "相机 / V4L2 压缩帧输入与 PS 格式预检。",
-    "connection": "MJPEG → PS 预检 → MM2S → jpeg_axis_gray",
-    "evidence": "输入限制按 LJ-01 JPEG 候选；不声称支持任意 JPEG。"
+    "name": "PS 相机采集与 MJPEG 解码",
+    "category": "01 / PS ACQUISITION",
+    "description": "USB 2.0 / V4L2 接收 640×400 MJPEG，由 PS 软件解码为 8 bit Gray8，再打包送 PL。",
+    "inside": "相机接收、解码、单调采集时间与输入缓冲管理。",
+    "connection": "USB/MJPEG → PS 解码 → Gray8 / DDR → AXI DMA MM2S",
+    "evidence": "技术文档专业版的当前链路；JPEG 硬解码前置仅为扩展方向。"
   },
   "rle": {
-    "name": "PL 行程编码 · RLE",
-    "category": "LAYER 02 / PIXEL PIPELINE",
-    "description": "PL 前景处理后输出 RLE 与 FRG1 区域记录。默认 JPEG 入口直接使用 FRG1，不从 RLE 重建区域。离线和 --software-decode 才使用 PS RLE 连通域。",
-    "inside": "RLE 逐行游程及 FRG1 区域记录；状态、frame_id、完整性与几何检查。",
-    "connection": "PL RLE + FRG1 → PS 状态 / 帧号 / 几何校验 → FRG1 检测筛选与跟踪",
-    "evidence": "RLE 保留掩码位置和连通关系；返回长度可变，不保证固定压缩率。"
+    "name": "PL 有界 RLE 与行列投影",
+    "category": "02 / PL BOUNDED OUTPUT",
+    "description": "逐行编码（行号，起始列，结束列），最多 16,384 游程，并统计行列投影、前景数和游程数。",
+    "inside": "RLE_PACKET_V1 包含帧号、参数版本、ROI、阈值、偏移、形态学、状态、长度与校验。",
+    "connection": "PL 前景 → RLE_PACKET_V1 / 投影 / 状态 → S2MM → DDR → PS 校验",
+    "evidence": "约 2.3 KB 为典型场景，不承诺固定压缩率；超限可检测，异常帧不进入正常计数。"
   },
   "overlay": {
-    "name": "T7 二值 Overlay 与同帧发布",
-    "category": "LAYER 04 / HARDWARE DISPLAY",
-    "description": "T7 video_binary_overlay 在 PL 输出二值掩膜、计数线、检测框与累计计数字形，不包含灰度预览及旧中文仪表盘。",
-    "inside": "掩膜双存储体、frame_id、VSYNC 切换、配置发布 / 确认握手；不匹配帧抑制旧叠加。",
-    "connection": "二值掩膜 + PS 同帧目标 / 计数配置 → video_binary_overlay → 视频输出链 / HDMI",
-    "evidence": "独立 RTL XSim、候选实现及板内 monitor 各验证对应范围，不等同外接屏验收。"
+    "name": "PS 灰度仪表盘与脏区刷新",
+    "category": "04 / PS COMPOSITION",
+    "description": "PS 生成 1280×720 Gray8 看板，含二值预览、检测框、轨迹编号、累计数及状态；显示结果绑定 frame_id。",
+    "inside": "离屏 chrome / 静态版式 / 字形缓存；动态数值、状态点与预览边框按脏区更新，减少重复光栅化和整帧拷贝。",
+    "connection": "同帧输入 + 结果 → PS 看板合成 → 完整画布发布 → DDR / VDMA / HDMI",
+    "evidence": "像素图层及文字由 PS 合成；PL 负责显示扫描和 HDMI 时序，不再描述为 T7 硬件 Overlay。"
   },
   "web": {
     "name": "Web 远程监控",
     "category": "AUXILIARY / REMOTE MONITOR",
-    "description": "独立辅助展示通道，用于远程查看计数、目标与运行状态，不替代硬件 HDMI 主显示路径。",
+    "description": "桌面端提供连接、启动、停止和状态查看；板端计数与 HDMI 可独立运行，不依赖 PC 或云服务。",
     "inside": "状态与统计展示；本网页使用本地仿真数据。",
     "connection": "PS 状态 / 计数 → Web 远程监控。",
-    "evidence": "辅助目标架构；本演示没有实时板卡网络连接。"
+    "evidence": "本网页使用本地合成数据，没有实时板卡连接。"
   }
 };
 export {evidenceHTML} from './evidence.js';

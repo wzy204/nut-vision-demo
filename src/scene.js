@@ -57,21 +57,21 @@ export function createWorld(host,onSelect,monitorCanvas){
  const nutPool=[];for(let i=0;i<MAX_QUANTITY;i++){const n=new THREE.Mesh(nutGeo,mat(0xc8d2db,.9,.26));n.userData.part='nut';physical.add(n);nutPool.push(n);selectable.push(n);}
  // Expanded chip: logical topology, not physical silicon floorplan.
  box(chip,[16,.14,12],[0,.1,.4],0x122638,.25);
- const layerNames=['01 ACQUIRE / DECODE','02 PL PIXELS / RLE ENCODE','03 PS REGIONS / TRACK / COUNT','04 VIDEO COMPOSE / DISPLAY'];
+ const layerNames=['01 PS ACQUIRE / DECODE','02 PL PIXELS / RLE ENCODE','03 PS REGIONS / TRACK / COUNT','04 PS COMPOSE / VDMA DISPLAY'];
  for(let i=0;i<4;i++){const z=-4+i*2.8;glowBox(chip,[15,.025,.025],[0,.19,z-1.1],i===2?C.blue:C.cyan,.5);text(chip,layerNames[i],[-4.5,.22,z-.9],.13,'#bed7e9',5.5);}
- const nodes=[['capture','ACQUIRE / DECODE',[-3,0,-4],[3,.6,1],C.gold],['gray','GRAY8',[-5.5,0,-1.2],[2,.6,1],C.purple],['roi','ROI',[-2.8,0,-1.2],[2,.6,1],C.purple],['threshold','THRESHOLD',[0,0,-1.2],[2.2,.6,1],C.purple],['morph','3x3 MORPH',[2.8,0,-1.2],[2.2,.6,1],C.purple],['rle','PL RLE + FRG1',[5.5,0,-1.2],[2.3,.6,1],C.purple],['ps','PS CONTROL',[-4.8,0,1.6],[2.3,.6,1],C.blue],['tracking','PS FRG1 / TRACK',[.3,0,1.6],[5,.6,1],C.blue],['overlay','T7 BINARY OVERLAY',[2.5,0,4.4],[3.8,.6,1],C.gold],['web','WEB AUX',[-3.8,0,4.4],[2.5,.6,1],C.blue]];
+ const nodes=[['capture','PS MJPEG DECODE',[-3,0,-4],[3,.6,1],C.gold],['gray','GRAY8',[-5.5,0,-1.2],[2,.6,1],C.purple],['roi','ROI',[-2.8,0,-1.2],[2,.6,1],C.purple],['threshold','THRESHOLD',[0,0,-1.2],[2.2,.6,1],C.purple],['morph','3x3 MORPH',[2.8,0,-1.2],[2.2,.6,1],C.purple],['rle','PL BOUNDED RLE',[5.5,0,-1.2],[2.3,.6,1],C.purple],['ps','PS CONTROL',[-4.8,0,1.6],[2.3,.6,1],C.blue],['tracking','PS RLE / SPLIT / TRACK',[.3,0,1.6],[5,.6,1],C.blue],['overlay','PS DASHBOARD',[2.5,0,4.4],[3.8,.6,1],C.gold],['web','WEB AUX',[-3.8,0,4.4],[2.5,.6,1],C.blue]];
  const nodeTitles={};
  for(const [id,title,pos,size,color]of nodes){const g=group(id,chip);g.position.set(pos[0],.5,pos[2]);box(g,size,[0,0,0],0x234052);glowBox(g,[size[0]-.1,.035,.055],[0,size[1]/2+.02,size[2]/2-.04],color);nodeTitles[id]=text(g,title,[0,.65,0],.15,`#${color.toString(16)}`,size[0]+.3);label(id,parts[id].name,[pos[0],1.8,pos[2]],chip);}
  const route=[[-3,.96,-4],[-5.5,.96,-1.2],[-2.8,.96,-1.2],[0,.96,-1.2],[2.8,.96,-1.2],[5.5,.96,-1.2],[5.5,.96,1.6],[.3,.96,1.6]];
  for(let i=0;i<route.length-1;i++)wire(chip,[route[i],route[i+1]],C.cyan,.035);
  // Independent image-video branch and target metadata branch converge at the compositor.
- wire(chip,[[2.8,.96,-1.2],[-7,1.5,-1.2],[-7,1.5,3],[2.5,1.5,3],[2.5,.96,4.4]],C.purple,.035);
+ wire(chip,[[-3,.96,-4],[-7,1.5,-4],[-7,1.5,-1.2],[-7,1.5,3],[2.5,1.5,3],[2.5,.96,4.4]],C.purple,.035);
  wire(chip,[[.3,.96,1.6],[.3,1.2,2.4],[2.5,1.2,2.4],[2.5,.96,4.4]],C.blue,.025);
  wire(chip,[[.3,.96,1.6],[-3.8,.96,1.6],[-3.8,.96,4.4]],C.blue,.025);
  wire(chip,[[2.5,.96,4.4],[6.8,.96,4.4]],C.gold,.035);
  text(chip,'VDMA / HDMI',[6.4,.3,5.5],.13,'#d9b97c',3);
- text(chip,'MASK + FRAME ID / VSYNC / ACK',[0,.3,6.7],.13,'#d9b97c',11);
- const modeNotice=text(chip,'JPEG / FRG1 / T7 CANDIDATE',[1.6,.3,-5.6],.13,'#d9b97c',8);
+ text(chip,'PS COMPOSE / FRAME ID / VDMA SCAN',[0,.3,6.7],.13,'#d9b97c',11);
+ const modeNotice=text(chip,'GRAY8 / RLE_PACKET_V1 / 50 MHz',[1.6,.3,-5.6],.13,'#d9b97c',8);
  const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();let down=null,focus=null,view='overview',highlight=null;
  renderer.domElement.addEventListener('pointerdown',e=>down=[e.clientX,e.clientY]);
  renderer.domElement.addEventListener('pointerup',e=>{if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>5)return;const r=renderer.domElement.getBoundingClientRect();pointer.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(pointer,camera);const hits=ray.intersectObjects(selectable,true).filter(h=>{let p=h.object;while(p){if(!p.visible)return false;p=p.parent;}return true;});if(hits.length){let o=hits[0].object;while(!o.userData.part&&o.parent)o=o.parent;const id=o.userData.part;if(id==='nut')onSelect('tracking');else onSelect(id);}});
@@ -101,5 +101,5 @@ export function createWorld(host,onSelect,monitorCanvas){
   renderer.render(scene,camera);
  }
  controls.addEventListener('start',()=>focus=null);
- return{update,setView,select,setArchitectureMode:mode=>{const target=mode==='target';nodeTitles.capture.userData.setText(target?'PS PREFLIGHT / PL JPEG':'USB MJPEG / PS DECODE');nodeTitles.overlay.userData.setText(target?'T7 BINARY OVERLAY':'PS COMPOSER / DIRTY UPDATE');modeNotice.userData.setText(target?'JPEG / FRG1 / T7 CANDIDATE':'P12-R4 / DISPLAY: PS TO VDMA HDMI');},renderer,scene,camera,cadMetadata,invalidateScreen:()=>{screenTexture.needsUpdate=true;}};
+ return{update,setView,select,renderer,scene,camera,cadMetadata,invalidateScreen:()=>{screenTexture.needsUpdate=true;}};
 }
